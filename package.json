@@ -1,0 +1,15 @@
+{
+  "name": "mongoose-dataTable",
+  "description": "Server side dataTable request support for mongoose",
+  "version": "0.0.1",
+  "authors": [
+    "Eric Herve <eric.herve.95@gmail.com>"
+  ],
+  "private": false,
+  "scripts": {
+    "start": "node app"
+  },
+  "engines": {
+    "node": ">= 0.8.1"
+  }
+}
