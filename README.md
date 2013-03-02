@@ -5,4 +5,4 @@ In construction...
 
 ## Install
 
-    npm install mongoose-dataTable
+    npm install mongoose-datatable
