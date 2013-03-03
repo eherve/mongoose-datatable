@@ -1,7 +1,6 @@
 # mongoose-dataTable
 
 Server side dataTable request support for mongoose.
-In construction...
 
 ## Install
 
@@ -66,3 +65,11 @@ The prededfined handler for Boolean uses the options to determine the language:
 
     var mongoose = require('mongoose');
     mongoose.plugin(DataTable.init);
+
+## Usage
+    var MyModel = require('mongoose').model('MyModel');
+    MyModel.dataTable(dataTableQueryParams, function(err, data) {
+        if(err) return manageError(err);
+        send(data);
+    });
+    
