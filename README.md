@@ -51,10 +51,16 @@ These handlers are called when the module try to build the condition on a field 
     
 #### Condition Options
 
-The condition options is an object with for key the mongoose schema field type name. these keys have for value an object containing for key the locale name plus the key default.
+The condition options is an object containing options with for keys the mongoose schema field type name.
 These options are passed to the condition handlers and help it for building the condition.
 
-##### eg.
+The prededfined handler for Boolean uses the options to determine the language:
+    <pre>conditionOptions: {
+        Boolean: {
+            fr: { True: /^vrai$/i, False: /^faux$/i },
+            default: { True: /^true$/i, False: /^false$/i }
+        }
+    }</pre>
 
 ## Initialization
 
