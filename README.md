@@ -18,6 +18,10 @@ Server side dataTable request support for mongoose.
 
 Configuration is not mandatory, the default options are: For String column, a like match is performed and for other types, an unknown type message is displayed o the console.
 
+#### Debug
+
+If the debug option is true (default false), the module will print the query from the dataTable and all the fields, conditions, sort and data retrieve.
+
 #### Condition handlers
 
 The condition handlers is an object that contains handlers (functions) with for key mongoose schema field type name.
