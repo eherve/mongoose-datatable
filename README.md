@@ -16,6 +16,8 @@ Server side dataTable request support for mongoose.
     
 ### Options
 
+    Configuration is not mandatory, the default options are: For String column, a like match is performed and for other types, an unknown type message is displayed o the console.
+
 #### Condition handlers
 
 The condition handlers is an object that contains handlers (functions) with for key mongoose schema field type name.
@@ -23,7 +25,7 @@ eg. String, Date, Boolean...
 These handlers are called when the module try to build the condition on a field and have for arguments:
 * locale
 
-    A string representing the local, eg.: us, fr, ...
+    A string representing the local, eg.: us, fr, ... (can be undefined if none given)
 
 * field
 
@@ -45,31 +47,36 @@ These handlers are called when the module try to build the condition on a field 
     <pre>conditionHandler: {
         String: buildStringCondition,
         Boolean: buildBooleanCondition,
-        Date: buildDateCondition
+        Date: buildDateCondition,
+        default: buildDefaultCondition
     }</pre>
     
-#### Condition Options
-
-The condition options is an object containing options with for keys the mongoose schema field type name.
-These options are passed to the condition handlers and help it for building the condition.
-
-The prededfined handler for Boolean uses the options to determine the language:
-    <pre>conditionOptions: {
-        Boolean: {
-            fr: { True: /^vrai$/i, False: /^faux$/i },
-            default: { True: /^true$/i, False: /^false$/i }
-        }
-    }</pre>
-
 ## Initialization
 
     var mongoose = require('mongoose');
     mongoose.plugin(DataTable.init);
 
 ## Usage
+
+The method <i>datatable </i> was added to all the schema as static method. The method has for parameters:
+
+* dataTableQuery
+
+    The query parameters send by the dataTable client
+
+* locale
+
+    The local of the request/connected client. This parameter is not mandatory and can be omitted.
+
+* callback
+
+    The callback called in case of error or when the data have been retrieved.
+
+<pre>
     var MyModel = require('mongoose').model('MyModel');
     MyModel.dataTable(dataTableQueryParams, function(err, data) {
         if(err) return manageError(err);
         send(data);
     });
+</pre>
     
