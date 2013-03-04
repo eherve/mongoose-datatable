@@ -16,13 +16,14 @@ Server side dataTable request support for mongoose.
     
 ### Options
 
-    Configuration is not mandatory, the default options are: For String column, a like match is performed and for other types, an unknown type message is displayed o the console.
+Configuration is not mandatory, the default options are: For String column, a like match is performed and for other types, an unknown type message is displayed o the console.
 
 #### Condition handlers
 
 The condition handlers is an object that contains handlers (functions) with for key mongoose schema field type name.
 eg. String, Date, Boolean...
 These handlers are called when the module try to build the condition on a field and have for arguments:
+
 * locale
 
     A string representing the local, eg.: us, fr, ... (can be undefined if none given)
@@ -44,12 +45,15 @@ These handlers are called when the module try to build the condition on a field 
     The object options specified in the condition options (see next section).
 
 ##### eg.
-    <pre>conditionHandler: {
-        String: buildStringCondition,
-        Boolean: buildBooleanCondition,
-        Date: buildDateCondition,
-        default: buildDefaultCondition
-    }</pre>
+
+<pre>
+conditionHandler: {
+    String: buildStringCondition,
+    Boolean: buildBooleanCondition,
+    Date: buildDateCondition,
+    default: buildDefaultCondition
+}
+</pre>
     
 ## Initialization
 
@@ -73,10 +77,10 @@ The method <i>datatable </i> was added to all the schema as static method. The m
     The callback called in case of error or when the data have been retrieved.
 
 <pre>
-    var MyModel = require('mongoose').model('MyModel');
-    MyModel.dataTable(dataTableQueryParams, function(err, data) {
-        if(err) return manageError(err);
-        send(data);
-    });
+var MyModel = require('mongoose').model('MyModel');
+MyModel.dataTable(dataTableQueryParams, function(err, data) {
+    if(err) return manageError(err);
+    send(data);
+});
 </pre>
     
