@@ -16,11 +16,16 @@ Server side dataTable request support for mongoose.
     
 ### Options
 
-Configuration is not mandatory, the default options are: For String column, a like match is performed and for other types, an unknown type message is displayed o the console.
+Configuration is not mandatory, the default options contains only the String column handler, a like match is performed.
+For other types, an unknown type message is displayed on the console (see verbose option).
 
 #### Debug
 
-If the debug option is true (default false), the module will print the query from the dataTable and all the fields, conditions, sort and data retrieve.
+If the debug option is set to true (default false), the module will print the query from the dataTable and all the fields, conditions, sort and data retrieve.
+
+#### Verbose
+
+If the verbose option is set to true (default false), the module will print on the console when the condition builder has no handler for a field type. In the default configuration, only the String condition builder exist, all other field type will trigger the loggin of an unknown handler type.
 
 #### Condition handlers
 
@@ -34,7 +39,7 @@ These handlers are called when the module try to build the condition on a field 
 
 * field
 
-    The schema field for which the condition is build.
+    The schema field for which the condition is build. If the field is marked as not selectable in the schema (select: false) or if the option <i>dataTableSelect</i> on the field exist and is set to false (dataTableSelect: false) then the field will not be selected even if it was requested by the dataTable client.
 
 * search
 
@@ -82,9 +87,21 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 
 <pre>
 var MyModel = require('mongoose').model('MyModel');
-MyModel.dataTable(dataTableQueryParams, function(err, data) {
+MyModel.dataTable(dataTableQueryParams, locale, function(err, data) {
     if(err) return manageError(err);
     send(data);
 });
 </pre>
-    
+
+## Chunk Search
+
+If the dataTable on the client side is parametrized to send in the query the field <i>bChunkSearch</i> with for value 'true', the chunk search is activated.
+The chunk search allows the user to specify in a the general search field specific field search.
+
+### eg.
+
+Add the condition for the value "test" on the username field.
+<pre>@username:test</pre>
+
+Add the condition for the value "Mr Arthur Dent" on the name field.
+<pre>@name:"Mr Arthur Dent"</pre>
