@@ -105,3 +105,7 @@ Add the condition for the value "test" on the username field.
 
 Add the condition for the value "Mr Arthur Dent" on the name field.
 <pre>@name:"Mr Arthur Dent"</pre>
+
+## Support
+
+<a href="http://www.it-tweaks.com/">it-tweaks</a>
