@@ -108,4 +108,4 @@ Add the condition for the value "Mr Arthur Dent" on the name field.
 
 ## Support
 
-<a href="http://www.it-tweaks.com/">it-tweaks</a>
+<a href="http://www.it-tweaks.com/" target="_blank">it-tweaks</a>
