@@ -22,10 +22,13 @@ For other types, an unknown type message is displayed on the console (see verbos
 #### Debug
 
 If the debug option is set to true (default false), the module will print the query from the dataTable and all the fields, conditions, sort and data retrieve.
+This can be set also via the method <i>enableDebug(true)</i>.
 
 #### Verbose
 
-If the verbose option is set to true (default false), the module will print on the console when the condition builder has no handler for a field type. In the default configuration, only the String condition builder exist, all other field type will trigger the loggin of an unknown handler type.
+If the verbose option is set to true (default false), the module will print on the console when the condition builder has no handler for a field type.
+In the default configuration, only the String condition builder exist, all other field type will trigger the log on the console of an unknown handler type.
+This can be set also via the method <i>enableVerbose(true)</i>.
 
 #### Condition handlers
 
