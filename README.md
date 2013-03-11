@@ -52,10 +52,6 @@ These handlers are called when the module try to build the condition on a field 
 
     A boolean sent by the data table on the client side saying if the search string is a regular expression or not.
 
-* options
-
-    The object options specified in the condition options (see next section).
-
 ##### eg.
 
 <pre>
