@@ -50,7 +50,7 @@ These handlers are called when the module try to build the condition on a field 
 
 * regexp
 
-    A boolean sent by the data table on the client side saying if the search ctring is a regular expression or not.
+    A boolean sent by the data table on the client side saying if the search string is a regular expression or not.
 
 * options
 
