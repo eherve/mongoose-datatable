@@ -32,34 +32,76 @@ This can be set also via the method <i>enableVerbose(true)</i>.
 
 #### Condition handlers
 
-The condition handlers is an object that contains handlers (functions) with for key mongoose schema field type name.
+The condition handlers is an object that contains handlers (functions) with for key, mongoose schema field type name.
 eg. String, Date, Boolean...
+It is possible to declare a default handler (key: default) that will be used if no handler found for a specific type.
 These handlers are called when the module try to build the condition on a field and have for arguments:
-
-* locale
-
-    A string representing the local, eg.: us, fr, ... (can be undefined if none given)
 
 * field
 
-    The schema field for which the condition is build. If the field is marked as not selectable in the schema (select: false) or if the option <i>dataTableSelect</i> on the field exist and is set to false (dataTableSelect: false) then the field will not be selected even if it was requested by the dataTable client.
+    The field for which the condition is build. The field has several properties that can be used to decide what kind of condition should be build.
+Properties:
+
+    * index
+
+        The column index (from 0) of the field in the table.
+
+    * path
+
+        The path (name) of the field used to specify it on the client side.
+
+    * searchable
+
+        A boolean specifying if the field is searchable.
+
+    * search
+
+        An array containing the search value applied on the field (undefined if no search value apllied).
+
+    * sortable
+
+        A boolean specifying if the field is sortable.
+
+    * sort
+
+        An object containing the sort direction and the sort precedence (undefined if not sorted).
+
+    * selectable
+
+        A boolean specifying if the field is selectable.
+
+    * type
+
+        A string representing the type of the field.
+
+    * ref
+
+        A string representing the referenced model if the field is a RefId field.
+
+    * arrayType
+
+        A string representing the underlying type if the field is an array.
+
+    * base
+  
+        An array of base referenced model if the field is a field of a referenced model (containd a list of base if the field go through several referenced models).
 
 * search
 
-    The search string sent by the data table on the client side regarding the specific field.
+    The search string or regular expression for which the condition has to be built.
 
-* regexp
+* options
 
-    A boolean sent by the data table on the client side saying if the search string is a regular expression or not.
+    An object given to the dataTable method on the schema. This options object can be used to pass information to the condition handlers, like the locale if needed.
 
 ##### eg.
 
 <pre>
-conditionHandler: {
-    String: buildStringCondition,
-    Boolean: buildBooleanCondition,
-    Date: buildDateCondition,
-    default: buildDefaultCondition
+conditionHandlers: {
+    String: StringHandler,
+    Boolean: booleanHandler,
+    Date: dateHandler,
+    default: defaultHandler
 }
 </pre>
     
@@ -76,9 +118,9 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 
     The query parameters send by the dataTable client
 
-* locale
+* options
 
-    The local of the request/connected client. This parameter is not mandatory and can be omitted.
+    Options pass to the condition handlers. OPTIONAL parameter.
 
 * callback
 
@@ -86,7 +128,7 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 
 <pre>
 var MyModel = require('mongoose').model('MyModel');
-MyModel.dataTable(dataTableQueryParams, locale, function(err, data) {
+MyModel.dataTable(dataTableQueryParams, options, function(err, data) {
     if(err) return manageError(err);
     send(data);
 });
@@ -104,6 +146,9 @@ Add the condition for the value "test" on the username field.
 
 Add the condition for the value "Mr Arthur Dent" on the name field.
 <pre>@name:"Mr Arthur Dent"</pre>
+
+Add the condition for the value "test" or "admin" on the username field.
+<pre>@username:test @username:admin</pre>
 
 ## Support
 
