@@ -45,7 +45,7 @@ db.once('open', function() {
   app.get('/', function(req, res) {
     res.render('index');
   });
-  app.get('/datatable', function(req, res, next) {
+  app.get('/data', function(req, res, next) {
     model.dataTable(req.query, function(err, data) {
       if (err) return next(err);
       res.send(data);
