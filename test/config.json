@@ -1,0 +1,10 @@
+{
+  "port": 4242,
+  "db": {
+    "host": "localhost",
+    "database": "test",
+    "port": 27017,
+    "username": "test",
+    "password": "test"
+  }
+}
