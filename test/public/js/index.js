@@ -1,13 +1,19 @@
 $(document).ready(function() {
   $('#datatable').dataTable({
-    sDom: "<'row-fluid'<'span5'l>f>t<'row-fluid'<'span5'i>p>",
     bFilter: true,
+    bProcessing: true,
     bServerSide: true,
     sAjaxSource: "/data",
     aoColumns: [
       { mData: "str" },
       { mData: "bool" }
     ]
-  });
+  }).columnFilter(
+    /*{
+    aoColumns: [
+      { type: "text" },
+      { type: null }
+    ]
+  }*/);
 });
 
