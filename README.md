@@ -30,6 +30,11 @@ If the verbose option is set to true (default false), the module will print on t
 In the default configuration, only the String condition builder exist, all other field type will trigger the log on the console of an unknown handler type.
 This can be set also via the method <i>enableVerbose(true)</i>.
 
+#### Logger
+
+If the options contains a logger [key: logger, value: function(level, args)], the default logger <i>console.log</i> is override by it.
+It allows to use an application specific logger.
+
 #### Condition handlers
 
 The condition handlers is an object that contains handlers (functions) with for key, mongoose schema field type name.
@@ -121,6 +126,8 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 * options
 
     Options pass to the condition handlers. OPTIONAL parameter.
+    Handlers can be given to override the overall behavior of condition builder handlers.
+    The field options.handlers is an object with for keys either a field type (like String, Boolean,,,) or a field path (like username, name.firstName) and for values, functions like the condition handler functions.
 
 * callback
 
