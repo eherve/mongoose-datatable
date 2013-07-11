@@ -126,8 +126,15 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 * options
 
     Options pass to the condition handlers. OPTIONAL parameter.
-    Handlers can be given to override the overall behavior of condition builder handlers.
-    The field options.handlers is an object with for keys either a field type (like String, Boolean,,,) or a field path (like username, name.firstName) and for values, functions like the condition handler functions.
+
+    * handlers
+
+        Handlers can be given to override the overall behavior of condition builder handlers.
+        The field options.handlers is an object with for keys either a field type (like String, Boolean,,,) or a field path (like username, name.firstName) and for values, functions like the condition handler functions.
+
+    * conditions
+
+        Conditions is an object as the mongoose find conditions. This conditions filter the dataTable data returned, it is applied as the first conjunction condition.
 
 * callback
 
