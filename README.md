@@ -134,7 +134,11 @@ The method <i>datatable </i> was added to all the schema as static method. The m
 
     * conditions
 
-        Conditions is an object as the mongoose find conditions. This conditions filter the dataTable data returned, it is applied as the first conjunction condition.
+        Conditions is an object as the mongoose find conditions. This conditions filter the dataTable data returned and the counts, it is applied as the first conjunction condition.
+
+    * select
+
+        Select is an object or a string as the mongoose query select argument. The select is applied on the find query that return the displayed entities.
 
 * callback
 
