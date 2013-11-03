@@ -6,8 +6,11 @@ $(document).ready(function() {
     sAjaxSource: "/data",
     aoColumns: [
       { mData: "str" },
+      { mData: "date" },
       { mData: "bool" }
-    ]
+    ],
+    fnServerParams: function(aoData) {
+      aoData.push({ name: "bChunkSearch", value: true }); }
   }).columnFilter(
     /*{
     aoColumns: [

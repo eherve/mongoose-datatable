@@ -24,6 +24,7 @@ db.once('open', function() {
   var Schema = mongoose.Schema;
   var schema = new Schema({
     str: String,
+    date: Date,
     bool: Boolean
   });
   var model = mongoose.model('Test', schema);
