@@ -40,7 +40,7 @@ It allows to use an application specific logger.
 The condition handlers is an object that contains handlers (functions) with for key, mongoose schema field type name.
 eg. String, Date, Boolean...
 It is possible to declare a default handler (key: default) that will be used if no handler found for a specific type.
-These handlers are called when the module try to build the condition on a field and have for arguments:
+These handlers are called when the module try to build the condition on a field. They can return a condition object for the field to match ( eg.: { $in: [...] } ) and have for arguments:
 
 * field
 
@@ -93,7 +93,7 @@ Properties:
 
 * search
 
-    The search string or regular expression for which the condition has to be built.
+    An array containing the search strings or regular expressions for which the condition has to be built.
 
 * options
 
