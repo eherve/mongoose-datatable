@@ -165,6 +165,9 @@ Add the condition for the value "test" on the username field.
 Add the condition for the value "Mr Arthur Dent" on the name field.
 <pre>@name:"Mr Arthur Dent"</pre>
 
+Add the condition for the value "test" or "admin" on the username field.
+<pre>@username:test @username:admin</pre>
+
 ## Support
 
 <a href="http://www.it-tweaks.com/" target="_blank">it-tweaks</a>
