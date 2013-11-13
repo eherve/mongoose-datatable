@@ -99,6 +99,22 @@ Properties:
 
     An object given to the dataTable method on the schema. This options object can be used to pass information to the condition handlers, like the locale if needed.
 
+##### Default condition handlers
+
+* String
+
+    Match anywere in the string in case insensitive mode.
+
+* Boolean
+
+    Match <i>true</i> or <i>false</i> in case insensitive mode.
+    
+* Date
+
+    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>end</i> value.
+    The <i>from</i> and <i>end</i> value are String dates and the <i>to</i> value is only needed when the <i>type</i> is "<>".
+    The <i>type</i> can be "=", ">", "<" or "<>" meaning respectively equals, greater than, less than or between.
+
 ##### eg.
 
 <pre>
