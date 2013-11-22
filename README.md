@@ -85,9 +85,17 @@ Properties:
 
         A string representing the referenced model if the field is a RefId field.
 
+    * refType
+
+        A string representing the reference key type if the field is a RefId field.
+
     * arrayType
 
         A string representing the underlying type if the field is an array.
+
+    * arrayPath
+
+        A string representing the base path of an array of subdocuments.
 
     * base
   
