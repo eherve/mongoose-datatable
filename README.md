@@ -1,6 +1,7 @@
 # mongoose-dataTable
 
 Server side dataTable request support for mongoose.
+
 Support mongoose version >= 3.8.0
 
 ## Install
