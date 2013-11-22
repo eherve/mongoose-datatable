@@ -25,7 +25,8 @@ db.once('open', function() {
   var schema = new Schema({
     str: String,
     date: Date,
-    bool: Boolean
+    bool: Boolean,
+    num: Number
   });
   var model = mongoose.model('Test', schema);
 

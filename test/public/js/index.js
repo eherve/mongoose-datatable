@@ -7,7 +7,8 @@ $(document).ready(function() {
     aoColumns: [
       { mData: "str" },
       { mData: "date" },
-      { mData: "bool" }
+      { mData: "bool" },
+      { mData: "num" }
     ],
     fnServerParams: function(aoData) {
       aoData.push({ name: "bChunkSearch", value: true }); }
