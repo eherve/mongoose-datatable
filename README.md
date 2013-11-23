@@ -121,14 +121,14 @@ Properties:
     
 * Date
 
-    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>end</i> value.
-    The <i>from</i> and <i>end</i> value are String dates and the <i>to</i> value is only needed when the <i>type</i> is "<>".
+    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>to</i> value.
+    The <i>from</i> and <i>to</i> value are String dates and the <i>to</i> value is only needed when the <i>type</i> is "<>".
     The <i>type</i> can be "=" (same as no <i>type</i>), ">", "<" or "<>" meaning respectively equals, greater than, less than or between.
 
 * Number
 
-    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>end</i> value.
-    The <i>from</i> and <i>end</i> value are (String) numbers and the <i>to</i> value is only needed when the <i>type</i> is "<>".
+    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>to</i> value.
+    The <i>from</i> and <i>to</i> value are (String) numbers and the <i>to</i> value is only needed when the <i>type</i> is "<>".
     The <i>type</i> can be "=" (same as no <i>type</i>), ">", "<" or "<>" meaning respectively equals, greater than, less than or between.
 
 ##### eg.
