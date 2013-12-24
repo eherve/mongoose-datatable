@@ -20,8 +20,7 @@ Support mongoDB version >= 2.4
     
 ### Options
 
-Configuration is not mandatory, the default options contains only the String column handler, a like match is performed.
-For other types, an unknown type message is displayed on the console (see verbose option).
+Configuration is not mandatory, the default options contains only the default handlers, for other types, an unknown type message is displayed on the console (see verbose option).
 
 #### Debug
 
