@@ -204,3 +204,7 @@ Add the condition for the value "test" or "admin" on the username field.
 ## Support
 
 <a href="http://www.it-tweaks.com/" target="_blank">it-tweaks</a>
+
+## Example with Node
+
+<a href="http://intertherabbithole.wordpress.com/2014/01/24/using-jquery-datatables-with-nodejs-and-mongodb-using-mongoose-datatables/" target="_blank">Example using Node</a>
