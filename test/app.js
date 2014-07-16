@@ -48,7 +48,8 @@ db.once('open', function() {
     res.render('index');
   });
   app.get('/data', function(req, res, next) {
-    model.dataTable(req.query, function(err, data) {
+    var options = { select: "bool" };
+    model.dataTable(req.query, options, function(err, data) {
       if (err) return next(err);
       res.send(data);
     });

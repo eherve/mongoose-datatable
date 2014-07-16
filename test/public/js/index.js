@@ -7,7 +7,11 @@ $(document).ready(function() {
     aoColumns: [
       { mData: "str" },
       { mData: "date" },
-      { mData: "bool" },
+      { sName: 'bool', sDefaultContent: "",
+        mRender: function (data, type, full) {
+          return full.bool;
+        }
+      },
       { mData: "num" }
     ],
     fnServerParams: function(aoData) {
