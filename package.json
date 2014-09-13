@@ -17,8 +17,5 @@
   "keywords": [
     "mongoose",
     "dataTable"
-  ],
-  "dependencies": {
-    "mongoose": "^3.8.16"
-  }
+  ]
 }
