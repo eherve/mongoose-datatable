@@ -148,6 +148,10 @@ conditionHandlers: {
     var mongoose = require('mongoose');
     mongoose.plugin(DataTable.init);
 
+## Fields
+
+If a mongoose schema field is marked as not selectable with the option "_select: false_". Or if the option _dataTableSelect_ is present and set to false: "_dataTableSelect: false_". Then the field will not be selected even if it was requested by the dataTable client.
+
 ## Usage
 
 The method <i>datatable </i> was added to all the schema as static method. The method has for parameters:

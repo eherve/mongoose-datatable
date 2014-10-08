@@ -12,16 +12,12 @@ $(document).ready(function() {
           return full.bool;
         }
       },
-      { mData: "num" }
+      { mData: "num" },
+      { mData: "select_false", sDefaultContent: "not fetched" },
+      { mData: "datatable_select_false", sDefaultContent: "not fetched" }
     ],
     fnServerParams: function(aoData) {
       aoData.push({ name: "bChunkSearch", value: true }); }
-  }).columnFilter(
-    /*{
-    aoColumns: [
-      { type: "text" },
-      { type: null }
-    ]
-  }*/);
+  }).columnFilter();
 });
 

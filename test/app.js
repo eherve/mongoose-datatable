@@ -23,10 +23,9 @@ db.once('open', function() {
   // Load Model
   var Schema = mongoose.Schema;
   var schema = new Schema({
-    str: String,
-    date: Date,
-    bool: Boolean,
-    num: Number
+    str: String, date: Date, bool: Boolean, num: Number,
+    select_false: { type: String, select: false },
+    datatable_select_false: { type: String, dataTableSelect: false }
   });
   var model = mongoose.model('Test', schema);
 
