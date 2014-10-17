@@ -212,3 +212,5 @@ Add the condition for the value "test" or "admin" on the username field.
 ## Example with Node
 
 <a href="http://intertherabbithole.wordpress.com/2014/01/24/using-jquery-datatables-with-nodejs-and-mongodb-using-mongoose-datatables/" target="_blank">Example using Node</a>
+
+<a href="https://github.com/lepazmino/mongoose-datatable-demo" target="_blank">Demo Repository</a>
