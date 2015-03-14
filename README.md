@@ -6,6 +6,8 @@ Support mongoose version >= 3.8.0
 
 Support mongoDB version >= 2.4
 
+Support DataTable >= 1.10
+
 ## Install
 
     npm install mongoose-datatable
