@@ -17,5 +17,8 @@
   "engines": {
     "node": ">= 0.8.1"
   },
-  "keywords": ["mongoose", "dataTable"]
+  "keywords": [
+    "mongoose",
+    "dataTable"
+  ]
 }
