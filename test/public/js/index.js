@@ -1,27 +1,26 @@
 $(document).ready(function() {
   $('#datatable').dataTable({
-    bFilter: true,
-    bProcessing: true,
-    bServerSide: true,
-    sAjaxSource: "/data",
-    aoColumns: [
-      { mData: "str", sDefaultContent: "" },
-      { mData: "date", sDefaultContent: "" },
-      { sName: 'bool', sDefaultContent: "",
-        mRender: function (data, type, full) {
+    processing: true,
+    serverSide: true,
+    ajax: { url: "data" },
+    columns: [
+      { data: "str", defaultContent: "" },
+      { data: "date", defaultContent: "" },
+      { name: 'bool', defaultContent: "",
+        render: function (data, type, full) {
           return full.bool;
         }
       },
-      { mData: "num", sDefaultContent: "" },
-      { mData: "select_false", sDefaultContent: "not fetched" },
-      { mData: "datatable_select_false", sDefaultContent: "not fetched" },
-      { mData: "type", sDefaultContent: "",
-        mRender: function(data, type, full) {
+      { data: "num", defaultContent: "" },
+      { data: "select_false", defaultContent: "not fetched" },
+      { data: "datatable_select_false", defaultContent: "not fetched" },
+      { data: "type", defaultContent: "",
+        render: function(data, type, full) {
           return data && data._id ? (data.id + " - " + data.description) : "";
         }
       },
-      { mData: "types.type", sDefaultContent: "",
-        mRender: function(data, type, full) {
+      { data: "types.type", defaultContent: "",
+        render: function(data, type, full) {
           if (!full.types) { return ""; }
           var str = "";
           for (var i = 0; i < full.types.length; ++i) {
@@ -30,8 +29,8 @@ $(document).ready(function() {
           return str;
         }
       },
-      { mData: "elements.type", sDefaultContent: "", // Does not work
-        mRender: function(data, type, full) {
+      { data: "elements.type", defaultContent: "", // Does not work
+        render: function(data, type, full) {
           if (!full.elements) { return ""; }
           var str = "";
           for (var i = 0; i < full.elements.length; ++i) {
@@ -41,8 +40,8 @@ $(document).ready(function() {
         }
       }
     ],
-    fnServerParams: function(aoData) {
-      aoData.push({ name: "bChunkSearch", value: true }); }
-  }).columnFilter();
+    serverParams: function(data) { data.bChunkSearch = true; }
+  });
+  //.columnFilter();
 });
 
