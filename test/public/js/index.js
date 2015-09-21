@@ -1,5 +1,9 @@
 $(document).ready(function() {
-  $('#datatable').dataTable({
+	$('#datatable tfoot th').each( function () {
+		var title = $('#example thead th').eq( $(this).index() ).text();
+		$(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+	});
+  $('#datatable').DataTable({
     processing: true,
     serverSide: true,
     ajax: { url: "data" },
@@ -26,7 +30,16 @@ $(document).ready(function() {
       }
     ],
     serverParams: function(data) { data.bChunkSearch = true; }
-  });
-  //.columnFilter();
+  }).columns().every( function () {
+			var that = this;
+
+			$( 'input', this.footer() ).on( 'keyup change', function () {
+				if ( that.search() !== this.value ) {
+					that
+						.search( this.value, true )
+						.draw();
+				}
+			} );
+		} );
 });
 
