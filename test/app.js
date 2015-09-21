@@ -8,6 +8,7 @@ var mongoose = require('mongoose')
 mongoose.connect(config.db.host || 'localhost', config.db.database,
     config.db.port || 27017, { user:  config.db.username,
     pass: config.db.password });
+mongoose.set('debug', true);
 // Add plugins
 DataTable.configure({ debug: true, verbose: true });
 mongoose.plugin(DataTable.init);
@@ -28,7 +29,8 @@ db.once('open', function() {
   });
   var subModel = mongoose.model('SubTest', subSchema);
   var subElement = new Schema({
-    type: { type: Schema.Types.ObjectId, ref: 'SubTest' }
+    type: { type: Schema.Types.ObjectId, ref: 'SubTest' },
+		types: [ { type: Schema.Types.ObjectId, ref: 'SubTest' } ]
   });
   var schema = new Schema({
     str: String, date: Date, bool: Boolean, num: Number,
@@ -36,8 +38,9 @@ db.once('open', function() {
     datatable_select_false: { type: String, dataTableSelect: false },
     type: { type: Schema.Types.ObjectId, ref: 'SubTest' },
     types: [ subElement ],
-    elements: [ { type: { type: Schema.Types.ObjectId, ref: 'SubTest' } } ] // Does not work
+    messages: [ { type: { type: Schema.Types.ObjectId, ref: 'SubTest' } } ] // Does not work
   });
+	schema.plugin(DeepPopulate);
   var model = mongoose.model('Test', schema);
 
   // Start application server
@@ -61,6 +64,7 @@ db.once('open', function() {
     var options = { select: "bool" };
     model.dataTable(req.query, options, function(err, data) {
       if (err) return next(err);
+			console.log('send data...');
       res.send(data);
     });
   });
