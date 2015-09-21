@@ -6,7 +6,7 @@ $(document).ready(function() {
     columns: [
       { data: "str", defaultContent: "" },
       { data: "date", defaultContent: "" },
-      { data: 'bool', defaultContent: "",
+      { name: 'bool', defaultContent: "",
         render: function (data, type, full) {
           return full.bool;
         }

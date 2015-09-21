@@ -40,7 +40,6 @@ db.once('open', function() {
     types: [ subElement ],
     messages: [ { type: { type: Schema.Types.ObjectId, ref: 'SubTest' } } ] // Does not work
   });
-	schema.plugin(DeepPopulate);
   var model = mongoose.model('Test', schema);
 
   // Start application server
