@@ -3,6 +3,6 @@
   "db": {
     "host": "localhost",
     "database": "test-data-table",
-    "port": 4242
+    "port": 27017
   }
 }

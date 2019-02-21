@@ -20,5 +20,34 @@
   "keywords": [
     "mongoose",
     "dataTable"
-  ]
+  ],
+  "devDependencies": {
+    "@types/bluebird": "^3.5.25",
+    "@types/chai": "^4.1.7",
+    "@types/chai-as-promised": "^7.1.0",
+    "@types/escape-string-regexp": "^1.0.0",
+    "@types/flat": "0.0.28",
+    "@types/lodash": "^4.14.119",
+    "@types/mocha": "^5.2.5",
+    "@types/mongoose": "^5.3.8",
+    "@types/node": "^10.12.18",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "del": "^3.0.0",
+    "gulp": "^4.0.0",
+    "gulp-minify-css": "^1.2.4",
+    "gulp-mocha-c8": "^1.0.0",
+    "gulp-print": "^5.0.0",
+    "gulp-sass": "^4.0.2",
+    "gulp-sourcemaps": "^2.6.4",
+    "gulp-typescript": "^5.0.0",
+    "mocha": "^5.2.0",
+    "typescript": "^3.2.2",
+    "yargs": "^12.0.5"
+  },
+  "dependencies": {
+    "escape-string-regexp": "^1.0.5",
+    "flat": "^4.1.0",
+    "lodash": "^4.17.11"
+  }
 }
