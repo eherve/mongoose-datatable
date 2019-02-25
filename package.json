@@ -7,16 +7,23 @@
     "url": "https://github.com/eherve/mongoose-datatable.git"
   },
   "author": "Eric Herve <eric.herve.95@gmail.com>",
-  "main": "./index",
+  "main": "./dist/datatable.js",
   "directories": {
     "lib": "."
   },
   "scripts": {
-    "test": "node test/app.js"
+    "build": "rm dist/* && tsc",
+    "pretest": "docker run -p 4242:27017 --name datatable --rm -d mongo",
+    "posttest": "docker stop $(docker ps -a -f name=datatable -q)",
+    "test": "tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js",
+    "prepare": "npm run build"
   },
   "engines": {
     "node": ">= 0.8.1"
   },
+  "files": [
+    "dist/*"
+  ],
   "keywords": [
     "mongoose",
     "dataTable"
@@ -31,19 +38,12 @@
     "@types/mocha": "^5.2.5",
     "@types/mongoose": "^5.3.8",
     "@types/node": "^10.12.18",
+    "c8": "^3.4.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "del": "^3.0.0",
-    "gulp": "^4.0.0",
-    "gulp-minify-css": "^1.2.4",
-    "gulp-mocha-c8": "^1.0.0",
-    "gulp-print": "^5.0.0",
-    "gulp-sass": "^4.0.2",
-    "gulp-sourcemaps": "^2.6.4",
-    "gulp-typescript": "^5.0.0",
     "mocha": "^5.2.0",
-    "typescript": "^3.2.2",
-    "yargs": "^12.0.5"
+    "mongoose": "^5.4.15",
+    "typescript": "^3.2.2"
   },
   "dependencies": {
     "escape-string-regexp": "^1.0.5",

@@ -1,8 +1,0 @@
-{
-  "port": 8042,
-  "db": {
-    "host": "localhost",
-    "database": "test-data-table",
-    "port": 27017
-  }
-}

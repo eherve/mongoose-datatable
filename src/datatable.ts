@@ -168,13 +168,13 @@ class DataTableModule {
     let search: any[] = [], csearch: any[] = [];
     const projection: any = {};
     const populate: (ILookup | IUnwind)[] = [];
-    if (query.search && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
+    if (query.search && query.search.value && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
     query.columns.forEach(column => {
       const field = this.fetchField(options, query, column, populate);
       if (!field) { return; }
       if (!this.isSelectable(field)) { return; }
       if (this.isTrue(column.searchable)) {
-        if (column.search && column.search.value !== '') { column.search.chunks = this.chunkSearch(column.search.value); }
+        if (column.search && column.search.value && column.search.value !== '') { column.search.chunks = this.chunkSearch(column.search.value); }
         const s = this.getSearch(options, query, column, field);
         search = search.concat(s.search);
         csearch = csearch.concat(s.csearch);
@@ -262,11 +262,11 @@ class DataTableModule {
 
   private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): { search: any[], csearch: any[] } {
     const search = [], csearch = [];
-    if (query.search && query.search.value !== '') {
+    if (query.search && query.search.value && query.search.value !== '') {
       const s = this.buildColumnSearch(options, query, column, field, query.search, true);
       if (s) { search.push(s); }
     }
-    if (column.search && column.search.value !== '') {
+    if (column.search && column.search.value && column.search.value !== '') {
       const s = this.buildColumnSearch(options, query, column, field, column.search, false);
       if (s) { csearch.push(s); }
     }
