@@ -34,6 +34,9 @@ class DataTableModule {
         };
     }
     dataTable(query, options = {}) {
+        if (options.logger) {
+            this._config.logger = options.logger;
+        }
         this.logger.debug('quey:', util.inspect(query, { depth: null }));
         const aggregate = {
             projection: [],
@@ -279,7 +282,7 @@ class DataTableModule {
                 columnSearch[column.data] = (new Number(chunk)).valueOf();
                 s.push(columnSearch);
             });
-            return { $or: s };
+            return s.length > 0 ? { $or: s } : null;
         }
         if (/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/.test(search.value)) {
             const op = RegExp.$1;
@@ -326,7 +329,7 @@ class DataTableModule {
                 columnSearch[column.data] = (new Number(chunk)).valueOf();
                 s.push(columnSearch);
             });
-            return { $or: s };
+            return s.length > 0 ? { $or: s } : null;
         }
         if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
             const op = RegExp.$1;

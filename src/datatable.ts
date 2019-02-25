@@ -88,6 +88,7 @@ export interface IQuery {
 export type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
 
 export interface IOptions {
+  logger?: ILogger;
   handlers?: { [type: string]: HandlerType };
   conditions?: any;
   select?: any
@@ -135,6 +136,7 @@ class DataTableModule {
   constructor(private schema: Schema) { }
 
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
+    if (options.logger) { this._config.logger = options.logger; }
     this.logger.debug('quey:', util.inspect(query, { depth: null }));
     const aggregate: IAggregateOptions = {
       projection: [],
@@ -347,7 +349,7 @@ class DataTableModule {
         columnSearch[column.data] = (new Number(chunk)).valueOf();
         s.push(columnSearch);
       });
-      return { $or: s };
+      return s.length > 0 ? { $or: s } : null;
     }
     if (/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/.test(search.value)) {
       const op = RegExp.$1;
@@ -378,7 +380,7 @@ class DataTableModule {
         columnSearch[column.data] = (new Number(chunk)).valueOf();
         s.push(columnSearch);
       });
-      return { $or: s };
+      return s.length > 0 ? { $or: s } : null;
     }
     if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
       const op = RegExp.$1;
