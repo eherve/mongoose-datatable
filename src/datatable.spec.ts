@@ -13,42 +13,16 @@ const expect = chai.expect;
 
 const query: IQuery = {
   draw: '2',
-  columns: [{
-    data: 'first_name',
-    name: null,
-    searchable: true,
-    orderable: true,
-    search: { value: null, regex: false }
-  },
-  {
-    data: 'last_name',
-    name: null,
-    searchable: false,
-    orderable: true,
-    search: { value: null, regex: false }
-  },
-  {
-    data: 'position',
-    name: null,
-    searchable: true,
-    orderable: true,
-    search: { value: null, regex: false }
-  },
-  {
-    data: 'start_date',
-    name: null,
-    searchable: true,
-    orderable: false,
-    search: { value: null, regex: false }
-  }
+  columns: [
+    { data: 'first_name', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
+    { data: 'last_name', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
+    { data: 'position', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
+    { data: 'start_date', name: null, searchable: true, orderable: false, search: { value: null, regex: false } }
   ],
   order: [{ column: 0, dir: 'asc' }],
   start: '0',
   length: '10',
-  search: {
-    value: null,
-    regex: false
-  }
+  search: { value: null, regex: false }
 };
 
 const nologger = { debug: () => { }, info: () => { }, warn: () => { }, error: () => { } } as any;
