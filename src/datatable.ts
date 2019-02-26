@@ -136,16 +136,15 @@ class DataTableModule {
   constructor(private schema: Schema) { }
 
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
-    if (options.logger) { this._config.logger = options.logger; }
-    this.logger.debug('quey:', util.inspect(query, { depth: null }));
+    (options.logger || this.logger).debug('quey:', util.inspect(query, { depth: null }));
     const aggregate: IAggregateOptions = {
-      projection: [],
+      projection: null,
       populate: [],
       sort: this.buildSort(query),
       pagination: this.pagination(query)
     };
     this.updateAggregateOptions(options, query, aggregate);
-    this.logger.debug('aggregate:', util.inspect(aggregate, { depth: null }));
+    (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
     return this.recordsTotal(options).then(recordsTotal => {
       return this.recordsFiltered(options, aggregate, recordsTotal).then(recordsFiltered => {
         return this.data(options, aggregate).then(data => {
@@ -169,10 +168,9 @@ class DataTableModule {
   private updateAggregateOptions(options: IOptions, query: IQuery, aggregate: IAggregateOptions): void {
     let search: any[] = [], csearch: any[] = [];
     const projection: any = {};
-    const populate: (ILookup | IUnwind)[] = [];
     if (query.search && query.search.value && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
     query.columns.forEach(column => {
-      const field = this.fetchField(options, query, column, populate);
+      const field = this.fetchField(options, query, column, aggregate.populate);
       if (!field) { return; }
       if (!this.isSelectable(field)) { return; }
       if (this.isTrue(column.searchable)) {
@@ -183,7 +181,6 @@ class DataTableModule {
       }
       projection[column.data] = 1;
     });
-    if (populate.length > 0) { aggregate.populate = populate; }
     this.addProjection(options, aggregate, projection);
     this.addSearch(options, aggregate, search, csearch);
   }
@@ -196,7 +193,7 @@ class DataTableModule {
     while (path.length) {
       field = schema.path(path) || this.getField(schema, path);
       if (!field) {
-        return this.logger.warn(`field path ${column.data} not found !`);
+        return (options.logger || this.logger).warn(`field path ${column.data} not found !`);
       }
       base += ((base.length ? '.' : '') + field.path);
       path = path.substring(field.path.length + 1);
@@ -210,7 +207,7 @@ class DataTableModule {
         }
       } else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {
         if (inArray) {
-          this.logger.warn(`lookup on submodel array [${column.data}] not managed !`);
+          (options.logger || this.logger).warn(`lookup on submodel array [${column.data}] not managed !`);
           return;
         }
         model = model.model(field.caster.options.ref);
@@ -225,7 +222,7 @@ class DataTableModule {
       } else { break; }
     }
     if (!field) {
-      this.logger.warn(`field path ${column.data} not found !`);
+      (options.logger || this.logger).warn(`field path ${column.data} not found !`);
     }
     return field;
   }
@@ -285,29 +282,29 @@ class DataTableModule {
   }
 
   private buildColumnSearch(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearch:', column.data, search);
+    (options.logger || this.logger).debug('buildColumnSearch:', column.data, search);
     let instance = field.instance;
     if (options.handlers && options.handlers[instance]) { return options.handlers[instance](query, column, field, search, global); }
     if (this.config.handlers[instance]) { return this.config.handlers[instance](query, column, field, search, global); }
     switch (instance) {
       case 'String':
-        return this.buildColumnSearchString(query, column, field, search, global);
+        return this.buildColumnSearchString(options, query, column, field, search, global);
       case 'Boolean':
-        return this.buildColumnSearchBoolean(query, column, field, search, global);
+        return this.buildColumnSearchBoolean(options, query, column, field, search, global);
       case 'Number':
-        return this.buildColumnSearchNumber(query, column, field, search, global);
+        return this.buildColumnSearchNumber(options, query, column, field, search, global);
       case 'Date':
-        return this.buildColumnSearchDate(query, column, field, search, global);
+        return this.buildColumnSearchDate(options, query, column, field, search, global);
       case 'ObjectID':
-        return this.buildColumnSearchObjectId(query, column, field, search, global);
+        return this.buildColumnSearchObjectId(options, query, column, field, search, global);
       default:
-        this.logger.warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
+        (options.logger || this.logger).warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
     }
     return null;
   }
 
-  private buildColumnSearchString(query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearchString:', column.data, search);
+  private buildColumnSearchString(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
+    (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
     if (!global && search.value.match(/^\/.*\/$/)) {
       try {
         const columnSearch: any = {};
@@ -324,8 +321,8 @@ class DataTableModule {
     return s.length > 0 ? { $or: s } : null;
   }
 
-  private buildColumnSearchBoolean(query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearchString:', column.data, search);
+  private buildColumnSearchBoolean(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
+    (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
     if (global) { return null; }
     const value = lowerCase(trim(search.value))
     let columnSearch: any = null;
@@ -339,8 +336,8 @@ class DataTableModule {
     return columnSearch;
   }
 
-  private buildColumnSearchNumber(query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearchNumber:', column.data, search);
+  private buildColumnSearchNumber(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
+    (options.logger || this.logger).debug('buildColumnSearchNumber:', column.data, search);
     if (global) {
       const s: any[] = [];
       (search.chunks || [search.value]).forEach(chunk => {
@@ -366,12 +363,12 @@ class DataTableModule {
         default: columnSearch[column.data] = from.valueOf();
       }
       return columnSearch;
-    } else { this.logger.warn(`buildColumnSearchNumber unmanaged search value '${search.value}`); }
+    } else { (options.logger || this.logger).warn(`buildColumnSearchNumber unmanaged search value '${search.value}`); }
     return null;
   }
 
-  private buildColumnSearchDate(query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearchDate:', column.data, search);
+  private buildColumnSearchDate(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
+    (options.logger || this.logger).debug('buildColumnSearchDate:', column.data, search);
     if (global) {
       const s: any[] = [];
       (search.chunks || [search.value]).forEach(chunk => {
@@ -387,12 +384,12 @@ class DataTableModule {
       const $2 = RegExp.$2;
       const from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
       if (!(from instanceof Date) || isNaN(from.valueOf())) {
-        return this.logger.warn(`buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
+        return (options.logger || this.logger).warn(`buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
       }
       const $3 = RegExp.$3;
       const to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
       if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-        return this.logger.warn(`buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
+        return (options.logger || this.logger).warn(`buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
       }
       const columnSearch: any = {};
       switch (op) {
@@ -405,12 +402,12 @@ class DataTableModule {
         default: columnSearch[column.data] = from;
       }
       return columnSearch;
-    } else { this.logger.warn(`buildColumnSearchDate unmanaged search value '${search.value}`); }
+    } else { (options.logger || this.logger).warn(`buildColumnSearchDate unmanaged search value '${search.value}`); }
     return null;
   }
 
-  private buildColumnSearchObjectId(query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    this.logger.debug('buildColumnSearchObjectId:', column.data, search);
+  private buildColumnSearchObjectId(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
+    (options.logger || this.logger).debug('buildColumnSearchObjectId:', column.data, search);
     if (global || !search.value.match(/^[0-9a-fA-F]{24}$/)) { return null; }
     const columnSearch: any = {};
     columnSearch[column.data] = search.value;
@@ -441,7 +438,7 @@ class DataTableModule {
 
   private async recordsFiltered(options: IOptions, aggregateOptions: IAggregateOptions, recordsTotal: number): Promise<number> {
     if (!aggregateOptions.search) { return Promise.resolve(recordsTotal); }
-    if (!aggregateOptions.populate) { return this.model.countDocuments(aggregateOptions.search); }
+    if (aggregateOptions.populate.length === 0) { return this.model.countDocuments(aggregateOptions.search); }
     const aggregate: any[] = [];
     aggregateOptions.populate.forEach(data => aggregate.push(data));
     aggregate.push({ $match: aggregateOptions.search });
@@ -451,7 +448,7 @@ class DataTableModule {
 
   private async data(options: IOptions, aggregateOptions: IAggregateOptions): Promise<any[]> {
     const aggregate: any[] = [];
-    if (aggregateOptions.populate) { aggregateOptions.populate.forEach(data => aggregate.push(data)); }
+    aggregateOptions.populate.forEach(data => aggregate.push(data));
     if (aggregateOptions.projection) { aggregate.push({ $project: aggregateOptions.projection }); }
     if (aggregateOptions.search) { aggregate.push({ $match: aggregateOptions.search }); }
     if (aggregateOptions.sort) { aggregate.push({ $sort: aggregateOptions.sort }); }
