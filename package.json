@@ -9,8 +9,11 @@
   "author": "Eric Herve <eric.herve.95@gmail.com>",
   "main": "./dist/datatable.js",
   "directories": {
-    "lib": "."
+    "lib": "dist"
   },
+  "files": [
+    "dist/*"
+  ],
   "scripts": {
     "build": "rm dist/* && tsc",
     "test": "docker run -p 4242:27017 --name datatable --rm -d mongo && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
@@ -19,9 +22,6 @@
   "engines": {
     "node": ">= 0.8.1"
   },
-  "files": [
-    "dist/*"
-  ],
   "keywords": [
     "mongoose",
     "dataTable"

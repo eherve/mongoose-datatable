@@ -224,6 +224,12 @@ class DataTableModule {
             case 'ObjectID':
                 return this.buildColumnSearchObjectId(options, query, column, field, search, global);
             default:
+                if (options.handlers && options.handlers.default) {
+                    return options.handlers.default(query, column, field, search, global);
+                }
+                if (this.config.handlers.default) {
+                    return this.config.handlers.default(query, column, field, search, global);
+                }
                 (options.logger || this.logger).warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
         }
         return null;
