@@ -16,7 +16,7 @@ interface ISort {
   [column: string]: number
 }
 
-interface IColumn {
+export interface IColumn {
   data: string;
   name: string;
   searchable: boolean;
@@ -29,7 +29,7 @@ interface IOrder {
   dir: string;
 }
 
-interface ISearch {
+export interface ISearch {
   value: string;
   regex: boolean;
   chunks?: string[];
@@ -298,6 +298,8 @@ class DataTableModule {
       case 'ObjectID':
         return this.buildColumnSearchObjectId(options, query, column, field, search, global);
       default:
+      if (options.handlers && options.handlers.default) { return options.handlers.default(query, column, field, search, global); }
+      if (this.config.handlers.default) { return this.config.handlers.default(query, column, field, search, global); }
         (options.logger || this.logger).warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
     }
     return null;
