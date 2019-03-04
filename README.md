@@ -10,6 +10,11 @@ Support mongoDB version >= 2.4
 
 Support DataTable >= 1.10
 
+## New Functionnalities
+
+* Population of ref sub-document or ref sub-documents are done with $lookup in aggregation
+* Filter and sort are possible on populated sub-documents
+
 ## Migration
 
 ### v1.x.x
