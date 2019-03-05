@@ -1,18 +1,23 @@
 {
   "name": "mongoose-datatable",
   "description": "Server side dataTable request support for mongoose",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/eherve/mongoose-datatable.git"
   },
   "author": "Eric Herve <eric.herve.95@gmail.com>",
-  "main": "./index",
+  "main": "./dist/datatable.js",
   "directories": {
-    "lib": "."
+    "lib": "dist"
   },
+  "files": [
+    "dist/*"
+  ],
   "scripts": {
-    "test": "node test/app.js"
+    "build": "rm dist/* && tsc",
+    "test": "docker run -p 4242:27017 --name datatable --rm -d mongo && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
+    "prepare": "npm run build"
   },
   "engines": {
     "node": ">= 0.8.1"
@@ -20,5 +25,27 @@
   "keywords": [
     "mongoose",
     "dataTable"
-  ]
+  ],
+  "devDependencies": {
+    "@types/bluebird": "^3.5.25",
+    "@types/chai": "^4.1.7",
+    "@types/chai-as-promised": "^7.1.0",
+    "@types/escape-string-regexp": "^1.0.0",
+    "@types/flat": "0.0.28",
+    "@types/lodash": "^4.14.119",
+    "@types/mocha": "^5.2.5",
+    "@types/mongoose": "^5.3.8",
+    "@types/node": "^10.12.18",
+    "c8": "^3.4.0",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "lodash": "^4.17.11",
+    "mocha": "^5.2.0",
+    "mongoose": "^5.4.15",
+    "typescript": "^3.2.2"
+  },
+  "dependencies": {
+    "escape-string-regexp": "^1.0.5",
+    "flat": "^4.1.0"
+  }
 }
