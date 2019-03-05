@@ -14,6 +14,7 @@ Support DataTable >= 1.10
 
 * Population of ref sub-document or ref sub-documents are done with $lookup in aggregation
 * Filter and sort are possible on populated sub-documents
+* add regex search on string fields
 
 ## Migration
 
