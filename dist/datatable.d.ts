@@ -37,6 +37,7 @@ export interface IOptions {
     };
     conditions?: any;
     select?: any;
+    disableCount?: boolean;
 }
 export interface IData {
     draw: string;

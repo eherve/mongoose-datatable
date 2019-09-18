@@ -43,8 +43,10 @@ class DataTableModule {
         };
         this.updateAggregateOptions(options, query, aggregate);
         (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
-        return this.recordsTotal(options).then(recordsTotal => {
-            return this.recordsFiltered(options, aggregate, recordsTotal).then(recordsFiltered => {
+        return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
+            .then(recordsTotal => {
+            return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal))
+                .then(recordsFiltered => {
                 return this.data(options, aggregate).then(data => {
                     return Promise.resolve({ draw: query.draw, recordsTotal, recordsFiltered, data });
                 });
@@ -111,7 +113,7 @@ class DataTableModule {
                 schema = model.schema;
                 if (!populate.find((l) => l.$lookup && l.$lookup.localField === base)) {
                     populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
-                    populate.push({ $unwind: { path: `$${base}` } });
+                    populate.push({ $unwind: { path: `$${base}`, preserveNullAndEmptyArrays: true } });
                 }
             }
             else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {

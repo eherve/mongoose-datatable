@@ -59,6 +59,7 @@ interface IReplace {
 interface IUnwind {
   $unwind: {
     path: string;
+    preserveNullAndEmptyArrays: boolean;
   }
 }
 
@@ -91,7 +92,8 @@ export interface IOptions {
   logger?: ILogger;
   handlers?: { [type: string]: HandlerType };
   conditions?: any;
-  select?: any
+  select?: any;
+  disableCount?: boolean;
 }
 
 export interface IData {
@@ -145,13 +147,15 @@ class DataTableModule {
     };
     this.updateAggregateOptions(options, query, aggregate);
     (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
-    return this.recordsTotal(options).then(recordsTotal => {
-      return this.recordsFiltered(options, aggregate, recordsTotal).then(recordsFiltered => {
-        return this.data(options, aggregate).then(data => {
-          return Promise.resolve({ draw: query.draw, recordsTotal, recordsFiltered, data });
-        });
+    return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
+      .then(recordsTotal => {
+        return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal))
+          .then(recordsFiltered => {
+            return this.data(options, aggregate).then(data => {
+              return Promise.resolve({ draw: query.draw, recordsTotal, recordsFiltered, data });
+            });
+          });
       });
-    });
   }
 
   private buildSort(query: IQuery): ISort {
@@ -203,7 +207,7 @@ class DataTableModule {
         schema = model.schema;
         if (!populate.find((l: any) => l.$lookup && l.$lookup.localField === base)) {
           populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
-          populate.push({ $unwind: { path: `$${base}` } });
+          populate.push({ $unwind: { path: `$${base}`, preserveNullAndEmptyArrays: true } });
         }
       } else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {
         if (inArray) {
@@ -298,8 +302,8 @@ class DataTableModule {
       case 'ObjectID':
         return this.buildColumnSearchObjectId(options, query, column, field, search, global);
       default:
-      if (options.handlers && options.handlers.default) { return options.handlers.default(query, column, field, search, global); }
-      if (this.config.handlers.default) { return this.config.handlers.default(query, column, field, search, global); }
+        if (options.handlers && options.handlers.default) { return options.handlers.default(query, column, field, search, global); }
+        if (this.config.handlers.default) { return this.config.handlers.default(query, column, field, search, global); }
         (options.logger || this.logger).warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
     }
     return null;
