@@ -127,9 +127,10 @@ class DataTableModule {
     return DataTableModule.CONFIG;
   }
 
-  static init(schema: any, opts: any) {
+  static init(schema: any, config?: IConfig) {
     const dataTableModule = new DataTableModule(schema);
     schema.statics.dataTable = function (query: IQuery, options?: IOptions) {
+      options = merge(config || {}, options || {});
       dataTableModule.model = this;
       return dataTableModule.dataTable(query, options);
     };

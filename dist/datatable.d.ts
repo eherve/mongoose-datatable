@@ -59,7 +59,7 @@ declare class DataTableModule {
     private readonly logger;
     private model;
     static configure(config?: IConfig): IConfig;
-    static init(schema: any, opts: any): void;
+    static init(schema: any, config?: IConfig): void;
     constructor(schema: Schema);
     private dataTable;
     private buildSort;
