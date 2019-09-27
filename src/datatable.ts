@@ -2,7 +2,7 @@
 import * as util from 'util';
 import { assign, trim, lowerCase, merge } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
-import { Schema, Model, SchemaType } from 'mongoose';
+import { Schema, Model, SchemaType, Types } from 'mongoose';
 import { unflatten } from 'flat';
 
 interface ILogger {
@@ -74,7 +74,7 @@ interface IAggregateOptions {
   search?: any;
   sort: ISort;
   pagination: IPagination;
-
+  groupBy?: string[];
 }
 
 export interface IQuery {
@@ -84,6 +84,7 @@ export interface IQuery {
   start: string;
   length: string;
   search: ISearch;
+  groupBy?: string[];
 }
 
 export type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
@@ -144,7 +145,8 @@ class DataTableModule {
       projection: null,
       populate: [],
       sort: this.buildSort(query),
-      pagination: this.pagination(query)
+      pagination: this.pagination(query),
+      groupBy: query.groupBy && query.groupBy.length > 0 ? query.groupBy : null
     };
     this.updateAggregateOptions(options, query, aggregate);
     (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
@@ -415,9 +417,9 @@ class DataTableModule {
 
   private buildColumnSearchObjectId(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
     (options.logger || this.logger).debug('buildColumnSearchObjectId:', column.data, search);
-    if (global || !search.value.match(/^[0-9a-fA-F]{24}$/)) { return null; }
+    if (global || !Types.ObjectId.isValid(search.value)) { return null; }
     const columnSearch: any = {};
-    columnSearch[column.data] = search.value;
+    columnSearch[column.data] = new Types.ObjectId(search.value);
     return columnSearch
   }
 
@@ -462,6 +464,22 @@ class DataTableModule {
     if (aggregateOptions.pagination) {
       if (aggregateOptions.pagination.start) { aggregate.push({ $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length }); }
       if (aggregateOptions.pagination.length) { aggregate.push({ $limit: aggregateOptions.pagination.length }); }
+    }
+    if (aggregateOptions.groupBy) {
+      aggregateOptions.groupBy.reverse().forEach((gb, i) => {
+        const gbs = aggregateOptions.groupBy.slice(i);
+        let group: any;
+        if (i === 0) {
+          group = { data: { $push: aggregateOptions.projection } };
+        } else {
+          group = { data: { $push: { data: '$data' } } };
+          const prev = aggregateOptions.groupBy[i - 1];
+          group.data.$push[prev] = `$${prev}`;
+        }
+        group._id = gbs.reduce((d: any, c: string) => (d[c] = `$${c}`, d), {});
+        gbs.forEach(g => group[g] = { $first: `$${g}` });
+        aggregate.push({ $group: group })
+      });
     }
     return this.model.aggregate(aggregate).allowDiskUse(true);
   }

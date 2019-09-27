@@ -27,25 +27,25 @@
     "dataTable"
   ],
   "devDependencies": {
-    "@types/bluebird": "^3.5.25",
-    "@types/chai": "^4.1.7",
-    "@types/chai-as-promised": "^7.1.0",
-    "@types/escape-string-regexp": "^1.0.0",
+    "@types/bluebird": "^3.5.27",
+    "@types/chai": "^4.2.3",
+    "@types/chai-as-promised": "^7.1.2",
+    "@types/escape-string-regexp": "^2.0.1",
     "@types/flat": "0.0.28",
-    "@types/lodash": "^4.14.119",
-    "@types/mocha": "^5.2.5",
-    "@types/mongoose": "^5.3.8",
-    "@types/node": "^10.12.18",
-    "c8": "^3.4.0",
+    "@types/lodash": "^4.14.139",
+    "@types/mocha": "^5.2.7",
+    "@types/mongoose": "^5.5.18",
+    "@types/node": "^12.7.8",
+    "c8": "^5.0.4",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "lodash": "^4.17.11",
-    "mocha": "^5.2.0",
-    "mongoose": "^5.4.15",
-    "typescript": "^3.2.2"
+    "lodash": "^4.17.15",
+    "mocha": "^6.2.0",
+    "mongoose": "^5.7.1",
+    "typescript": "^3.6.3"
   },
   "dependencies": {
-    "escape-string-regexp": "^1.0.5",
+    "escape-string-regexp": "^2.0.0",
     "flat": "^4.1.0"
   }
 }

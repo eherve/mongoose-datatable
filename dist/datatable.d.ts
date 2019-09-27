@@ -28,6 +28,7 @@ export interface IQuery {
     start: string;
     length: string;
     search: ISearch;
+    groupBy?: string[];
 }
 export declare type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
 export interface IOptions {

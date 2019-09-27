@@ -1,9 +1,10 @@
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -11,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const util = require("util");
 const lodash_1 = require("lodash");
 const escapeStringRegexp = require("escape-string-regexp");
+const mongoose_1 = require("mongoose");
 const flat_1 = require("flat");
 ;
 class DataTableModule {
@@ -40,7 +42,8 @@ class DataTableModule {
             projection: null,
             populate: [],
             sort: this.buildSort(query),
-            pagination: this.pagination(query)
+            pagination: this.pagination(query),
+            groupBy: query.groupBy && query.groupBy.length > 0 ? query.groupBy : null
         };
         this.updateAggregateOptions(options, query, aggregate);
         (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
@@ -376,11 +379,11 @@ class DataTableModule {
     }
     buildColumnSearchObjectId(options, query, column, field, search, global) {
         (options.logger || this.logger).debug('buildColumnSearchObjectId:', column.data, search);
-        if (global || !search.value.match(/^[0-9a-fA-F]{24}$/)) {
+        if (global || !mongoose_1.Types.ObjectId.isValid(search.value)) {
             return null;
         }
         const columnSearch = {};
-        columnSearch[column.data] = search.value;
+        columnSearch[column.data] = new mongoose_1.Types.ObjectId(search.value);
         return columnSearch;
     }
     pagination(query) {
@@ -437,6 +440,23 @@ class DataTableModule {
                 if (aggregateOptions.pagination.length) {
                     aggregate.push({ $limit: aggregateOptions.pagination.length });
                 }
+            }
+            if (aggregateOptions.groupBy) {
+                aggregateOptions.groupBy.reverse().forEach((gb, i) => {
+                    const gbs = aggregateOptions.groupBy.slice(i);
+                    let group;
+                    if (i === 0) {
+                        group = { data: { $push: aggregateOptions.projection } };
+                    }
+                    else {
+                        group = { data: { $push: { data: '$data' } } };
+                        const prev = aggregateOptions.groupBy[i - 1];
+                        group.data.$push[prev] = `$${prev}`;
+                    }
+                    group._id = gbs.reduce((d, c) => (d[c] = `$${c}`, d), {});
+                    gbs.forEach(g => group[g] = { $first: `$${g}` });
+                    aggregate.push({ $group: group });
+                });
             }
             return this.model.aggregate(aggregate).allowDiskUse(true);
         });
