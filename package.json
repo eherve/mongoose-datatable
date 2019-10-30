@@ -1,7 +1,7 @@
 {
   "name": "mongoose-datatable",
   "description": "Server side dataTable request support for mongoose",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/eherve/mongoose-datatable.git"
@@ -27,25 +27,25 @@
     "dataTable"
   ],
   "devDependencies": {
-    "@types/bluebird": "^3.5.27",
-    "@types/chai": "^4.2.3",
+    "@types/bluebird": "^3.5.28",
+    "@types/chai": "^4.2.4",
     "@types/chai-as-promised": "^7.1.2",
     "@types/escape-string-regexp": "^2.0.1",
     "@types/flat": "0.0.28",
-    "@types/lodash": "^4.14.139",
+    "@types/lodash": "^4.14.144",
     "@types/mocha": "^5.2.7",
-    "@types/mongoose": "^5.5.18",
-    "@types/node": "^12.7.8",
-    "c8": "^5.0.4",
+    "@types/mongoose": "^5.5.28",
+    "@types/node": "^12.12.3",
+    "c8": "^6.0.1",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "lodash": "^4.17.15",
-    "mocha": "^6.2.0",
-    "mongoose": "^5.7.1",
-    "typescript": "^3.6.3"
+    "mocha": "^6.2.2",
+    "mongoose": "^5.7.7",
+    "typescript": "^3.6.4"
   },
   "dependencies": {
     "escape-string-regexp": "^2.0.0",
-    "flat": "^4.1.0"
+    "flat": "^5.0.0"
   }
 }

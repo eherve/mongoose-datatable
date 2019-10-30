@@ -281,6 +281,7 @@ class DataTableModule {
 
   private chunkSearch(search: string): string[] {
     let chunks: string[] = [];
+    search = search !== null && search !== undefined ? search.toString() : '';
     chunks = chunks.concat(search.replace(/(?:"([^"]*)")/g, (match, word) => {
       if (word && word.length > 0) { chunks.push(word); }
       return '';
