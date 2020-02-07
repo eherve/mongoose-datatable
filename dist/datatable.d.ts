@@ -10,7 +10,7 @@ export interface IColumn {
     name: string;
     searchable: boolean;
     orderable: boolean;
-    search: ISearch;
+    search?: ISearch;
 }
 interface IOrder {
     column: number;
@@ -27,8 +27,7 @@ export interface IQuery {
     order?: IOrder[];
     start: string;
     length: string;
-    search: ISearch;
-    groupBy?: string[];
+    search?: ISearch;
 }
 export declare type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
 export interface IOptions {
@@ -84,5 +83,6 @@ declare class DataTableModule {
     private recordsTotal;
     private recordsFiltered;
     private data;
+    private debug;
 }
 export default DataTableModule;

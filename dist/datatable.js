@@ -37,16 +37,14 @@ class DataTableModule {
         };
     }
     dataTable(query, options = {}) {
-        (options.logger || this.logger).debug('quey:', util.inspect(query, { depth: null }));
+        this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
         const aggregate = {
             projection: null,
             populate: [],
             sort: this.buildSort(query),
-            pagination: this.pagination(query),
-            groupBy: query.groupBy && query.groupBy.length > 0 ? query.groupBy : null
+            pagination: this.pagination(query)
         };
         this.updateAggregateOptions(options, query, aggregate);
-        (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
         return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
             .then(recordsTotal => {
             return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal))
@@ -64,7 +62,7 @@ class DataTableModule {
         const sort = {};
         query.order.forEach(order => {
             const column = query.columns[order.column];
-            if (!column && this.isFalse(column.orderable)) {
+            if (column && this.isFalse(column.orderable)) {
                 return;
             }
             sort[column.data] = order.dir === 'asc' ? 1 : -1;
@@ -74,7 +72,7 @@ class DataTableModule {
     updateAggregateOptions(options, query, aggregate) {
         let search = [], csearch = [];
         const projection = {};
-        if (query.search && query.search.value && query.search.value !== '') {
+        if (query.search && query.search.value !== undefined && query.search.value !== '') {
             query.search.chunks = this.chunkSearch(query.search.value);
         }
         query.columns.forEach(column => {
@@ -86,7 +84,7 @@ class DataTableModule {
                 return;
             }
             if (this.isTrue(column.searchable)) {
-                if (column.search && column.search.value && column.search.value !== '') {
+                if (column.search && column.search.value !== undefined && column.search.value !== '') {
                     column.search.chunks = this.chunkSearch(column.search.value);
                 }
                 const s = this.getSearch(options, query, column, field);
@@ -185,13 +183,13 @@ class DataTableModule {
     }
     getSearch(options, query, column, field) {
         const search = [], csearch = [];
-        if (query.search && query.search.value && query.search.value !== '') {
+        if (query.search && query.search.value !== undefined && query.search.value !== '') {
             const s = this.buildColumnSearch(options, query, column, field, query.search, true);
             if (s) {
                 search.push(s);
             }
         }
-        if (column.search && column.search.value && column.search.value !== '') {
+        if (column.search && column.search.value !== undefined && column.search.value !== '') {
             const s = this.buildColumnSearch(options, query, column, field, column.search, false);
             if (s) {
                 csearch.push(s);
@@ -211,13 +209,16 @@ class DataTableModule {
         return chunks;
     }
     buildColumnSearch(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearch:', column.data, search);
         let instance = field.instance;
         if (options.handlers && options.handlers[instance]) {
             return options.handlers[instance](query, column, field, search, global);
         }
         if (this.config.handlers[instance]) {
             return this.config.handlers[instance](query, column, field, search, global);
+        }
+        if (search.value === null) {
+            const columnSearch = {};
+            return columnSearch[column.data] = null;
         }
         switch (instance) {
             case 'String':
@@ -242,7 +243,7 @@ class DataTableModule {
         return null;
     }
     buildColumnSearchString(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
+        this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
         if (!global && search.value.match(/^\/.*\/$/)) {
             try {
                 const columnSearch = {};
@@ -260,7 +261,7 @@ class DataTableModule {
         return s.length > 0 ? { $or: s } : null;
     }
     buildColumnSearchBoolean(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
+        this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
         if (global) {
             return null;
         }
@@ -277,7 +278,7 @@ class DataTableModule {
         return columnSearch;
     }
     buildColumnSearchNumber(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearchNumber:', column.data, search);
+        this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
         if (global) {
             const s = [];
             (search.chunks || [search.value]).forEach(chunk => {
@@ -324,7 +325,7 @@ class DataTableModule {
         return null;
     }
     buildColumnSearchDate(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearchDate:', column.data, search);
+        this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
         if (global) {
             const s = [];
             (search.chunks || [search.value]).forEach(chunk => {
@@ -379,7 +380,7 @@ class DataTableModule {
         return null;
     }
     buildColumnSearchObjectId(options, query, column, field, search, global) {
-        (options.logger || this.logger).debug('buildColumnSearchObjectId:', column.data, search);
+        this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
         if (global || !mongoose_1.Types.ObjectId.isValid(search.value)) {
             return null;
         }
@@ -442,29 +443,19 @@ class DataTableModule {
                     aggregate.push({ $limit: aggregateOptions.pagination.length });
                 }
             }
-            if (aggregateOptions.groupBy) {
-                aggregateOptions.groupBy.reverse().forEach((gb, i) => {
-                    const gbs = aggregateOptions.groupBy.slice(i);
-                    let group;
-                    if (i === 0) {
-                        group = { data: { $push: aggregateOptions.projection } };
-                    }
-                    else {
-                        group = { data: { $push: { data: '$data' } } };
-                        const prev = aggregateOptions.groupBy[i - 1];
-                        group.data.$push[prev] = `$${prev}`;
-                    }
-                    group._id = gbs.reduce((d, c) => (d[c] = `$${c}`, d), {});
-                    gbs.forEach(g => group[g] = { $first: `$${g}` });
-                    aggregate.push({ $group: group });
-                });
-            }
+            this.debug(options.logger, aggregate);
             return this.model.aggregate(aggregate).allowDiskUse(true);
         });
     }
+    debug(logger, ...args) {
+        const l = logger || this.logger;
+        if (l && l.debug) {
+        }
+        l.debug.apply(l, args);
+    }
 }
 DataTableModule.CONFIG = {
-    logger: console,
+    logger: null,
     handlers: {}
 };
 exports.default = DataTableModule;

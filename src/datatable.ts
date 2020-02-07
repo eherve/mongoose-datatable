@@ -1,4 +1,3 @@
-
 import * as util from 'util';
 import { assign, trim, lowerCase, merge } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
@@ -21,7 +20,7 @@ export interface IColumn {
   name: string;
   searchable: boolean;
   orderable: boolean;
-  search: ISearch;
+  search?: ISearch;
 }
 
 interface IOrder {
@@ -74,7 +73,6 @@ interface IAggregateOptions {
   search?: any;
   sort: ISort;
   pagination: IPagination;
-  groupBy?: string[];
 }
 
 export interface IQuery {
@@ -83,8 +81,7 @@ export interface IQuery {
   order?: IOrder[];
   start: string;
   length: string;
-  search: ISearch;
-  groupBy?: string[];
+  search?: ISearch;
 }
 
 export type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
@@ -112,7 +109,7 @@ export interface IConfig {
 class DataTableModule {
 
   static CONFIG: IConfig = {
-    logger: console,
+    logger: null,
     handlers: {}
   };
 
@@ -140,16 +137,14 @@ class DataTableModule {
   constructor(private schema: Schema) { }
 
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
-    (options.logger || this.logger).debug('quey:', util.inspect(query, { depth: null }));
+    this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
     const aggregate: IAggregateOptions = {
       projection: null,
       populate: [],
       sort: this.buildSort(query),
-      pagination: this.pagination(query),
-      groupBy: query.groupBy && query.groupBy.length > 0 ? query.groupBy : null
+      pagination: this.pagination(query)
     };
     this.updateAggregateOptions(options, query, aggregate);
-    (options.logger || this.logger).debug('aggregate:', util.inspect(aggregate, { depth: null }));
     return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
       .then(recordsTotal => {
         return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal))
@@ -166,7 +161,7 @@ class DataTableModule {
     const sort: ISort = {};
     query.order.forEach(order => {
       const column: IColumn = query.columns[order.column];
-      if (!column && this.isFalse(column.orderable)) { return; }
+      if (column && this.isFalse(column.orderable)) { return; }
       sort[column.data] = order.dir === 'asc' ? 1 : -1;
     });
     return sort;
@@ -175,13 +170,15 @@ class DataTableModule {
   private updateAggregateOptions(options: IOptions, query: IQuery, aggregate: IAggregateOptions): void {
     let search: any[] = [], csearch: any[] = [];
     const projection: any = {};
-    if (query.search && query.search.value && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
+    if (query.search && query.search.value !== undefined && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
     query.columns.forEach(column => {
       const field = this.fetchField(options, query, column, aggregate.populate);
       if (!field) { return; }
       if (!this.isSelectable(field)) { return; }
       if (this.isTrue(column.searchable)) {
-        if (column.search && column.search.value && column.search.value !== '') { column.search.chunks = this.chunkSearch(column.search.value); }
+        if (column.search && column.search.value !== undefined && column.search.value !== '') {
+          column.search.chunks = this.chunkSearch(column.search.value);
+        }
         const s = this.getSearch(options, query, column, field);
         search = search.concat(s.search);
         csearch = csearch.concat(s.csearch);
@@ -204,7 +201,6 @@ class DataTableModule {
       }
       base += ((base.length ? '.' : '') + field.path);
       path = path.substring(field.path.length + 1);
-
       if (field.options && field.options.ref) {
         model = model.model(field.options.ref);
         schema = model.schema;
@@ -268,11 +264,11 @@ class DataTableModule {
 
   private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): { search: any[], csearch: any[] } {
     const search = [], csearch = [];
-    if (query.search && query.search.value && query.search.value !== '') {
+    if (query.search && query.search.value !== undefined && query.search.value !== '') {
       const s = this.buildColumnSearch(options, query, column, field, query.search, true);
       if (s) { search.push(s); }
     }
-    if (column.search && column.search.value && column.search.value !== '') {
+    if (column.search && column.search.value !== undefined && column.search.value !== '') {
       const s = this.buildColumnSearch(options, query, column, field, column.search, false);
       if (s) { csearch.push(s); }
     }
@@ -290,10 +286,13 @@ class DataTableModule {
   }
 
   private buildColumnSearch(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearch:', column.data, search);
     let instance = field.instance;
     if (options.handlers && options.handlers[instance]) { return options.handlers[instance](query, column, field, search, global); }
     if (this.config.handlers[instance]) { return this.config.handlers[instance](query, column, field, search, global); }
+    if (search.value === null) {
+      const columnSearch: any = {};
+      return columnSearch[column.data] = null;
+    }
     switch (instance) {
       case 'String':
         return this.buildColumnSearchString(options, query, column, field, search, global);
@@ -314,7 +313,7 @@ class DataTableModule {
   }
 
   private buildColumnSearchString(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
+    this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
     if (!global && search.value.match(/^\/.*\/$/)) {
       try {
         const columnSearch: any = {};
@@ -332,7 +331,7 @@ class DataTableModule {
   }
 
   private buildColumnSearchBoolean(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearchString:', column.data, search);
+    this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
     if (global) { return null; }
     const value = lowerCase(trim(search.value))
     let columnSearch: any = null;
@@ -347,7 +346,7 @@ class DataTableModule {
   }
 
   private buildColumnSearchNumber(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearchNumber:', column.data, search);
+    this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
     if (global) {
       const s: any[] = [];
       (search.chunks || [search.value]).forEach(chunk => {
@@ -378,7 +377,7 @@ class DataTableModule {
   }
 
   private buildColumnSearchDate(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearchDate:', column.data, search);
+    this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
     if (global) {
       const s: any[] = [];
       (search.chunks || [search.value]).forEach(chunk => {
@@ -417,11 +416,11 @@ class DataTableModule {
   }
 
   private buildColumnSearchObjectId(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
-    (options.logger || this.logger).debug('buildColumnSearchObjectId:', column.data, search);
+    this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
     if (global || !Types.ObjectId.isValid(search.value)) { return null; }
     const columnSearch: any = {};
     columnSearch[column.data] = new Types.ObjectId(search.value);
-    return columnSearch
+    return columnSearch;
   }
 
   private pagination(query: IQuery): IPagination {
@@ -466,23 +465,14 @@ class DataTableModule {
       if (aggregateOptions.pagination.start) { aggregate.push({ $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length }); }
       if (aggregateOptions.pagination.length) { aggregate.push({ $limit: aggregateOptions.pagination.length }); }
     }
-    if (aggregateOptions.groupBy) {
-      aggregateOptions.groupBy.reverse().forEach((gb, i) => {
-        const gbs = aggregateOptions.groupBy.slice(i);
-        let group: any;
-        if (i === 0) {
-          group = { data: { $push: aggregateOptions.projection } };
-        } else {
-          group = { data: { $push: { data: '$data' } } };
-          const prev = aggregateOptions.groupBy[i - 1];
-          group.data.$push[prev] = `$${prev}`;
-        }
-        group._id = gbs.reduce((d: any, c: string) => (d[c] = `$${c}`, d), {});
-        gbs.forEach(g => group[g] = { $first: `$${g}` });
-        aggregate.push({ $group: group })
-      });
-    }
+    this.debug(options.logger, aggregate);
     return this.model.aggregate(aggregate).allowDiskUse(true);
+  }
+
+  private debug(logger: ILogger, ...args: any) {
+    const l = logger || this.logger;
+    if (l && l.debug) {
+    } l.debug.apply(l, args);
   }
 
 }

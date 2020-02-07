@@ -1,7 +1,7 @@
 import chai = require('chai');
 import chaiAsPromised = require('chai-as-promised');
 import Datatable, { IQuery } from './datatable';
-import { merge } from 'lodash';
+import { clone } from 'lodash';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
 const mongoose = require('mongoose');
@@ -17,6 +17,7 @@ const expect = chai.expect;
 const query: IQuery = {
   draw: '2',
   columns: [
+    { data: '_id', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
     { data: 'first_name', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
     { data: 'last_name', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
     { data: 'activated', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
@@ -137,11 +138,16 @@ describe('Datatable Module', () => {
 
   describe('dataTable', () => {
 
+    let tests: any[];
+
     before(done => {
       Datatable.configure({ logger: nologger });
-      mongoose.connect(mongoUrl, { useNewUrlParser: true });
+      mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
       mongoose.connection.on('error', done);
-      mongoose.connection.on('open', () => seed().then(() => done()).catch(done));
+      mongoose.connection.on('open', () => seed().then((res) => {
+        tests = res;
+        done();
+      }).catch(done));
     });
 
     it('should list all data', async () => {
@@ -168,6 +174,17 @@ describe('Datatable Module', () => {
         expect(data.data).to.have.lengthOf(2);
         expect(data.data[0]).to.have.property('first_name', 'Clement');
         expect(data.data[1]).to.have.property('first_name', 'Saanvi');
+      });
+    });
+
+    it('should find entry with _id matching', async () => {
+      const q = clone(query);
+      q.columns[0].search = { value: tests[0]._id.toString(), regex: false };
+      return model.dataTable(q).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        expect(data.data).to.have.lengthOf(1);
+        expect(data.data[0]._id.equals(tests[0]._id)).to.be.true;
       });
     });
 
@@ -213,7 +230,7 @@ describe('Datatable Module', () => {
 });
 
 
-async function seed(): Promise<void> {
+async function seed(): Promise<any[]> {
   const subdata = await subModel.insertMany([
     { code: 'FR01', description: 'code FR01' },
     { code: 'FR02', description: 'code FR02' },
@@ -221,11 +238,12 @@ async function seed(): Promise<void> {
     { code: 'FR04', description: 'code FR04' },
     { code: 'FR05', description: 'code FR05' },
   ]);
-  await model.insertMany([
+  const res = await model.insertMany([
     { first_name: 'Clement', last_name: 'Sadler', activated: true, position: 1, start_date: new Date('2019.01.01'), sub_schema: subdata[0] },
     { first_name: 'Saanvi', last_name: 'Meyers', activated: false, position: 2, start_date: new Date('2019.01.02'), sub_schema: subdata[1] },
     { first_name: 'Antonia', last_name: 'Watts', activated: true, position: 3, start_date: new Date('2019.01.03'), sub_schema: subdata[2] },
     { first_name: 'Eman', last_name: 'Watts', activated: false, position: 4, start_date: new Date('2019.01.04'), sub_schema: subdata[3] },
     { first_name: 'Eman', last_name: 'Partridge', activated: true, position: 5, start_date: new Date('2019.01.05'), sub_schema: subdata[4] }
   ]);
-}
+  return res;
+};

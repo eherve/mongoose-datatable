@@ -213,3 +213,8 @@ model.dataTable(query, options)
 ```diff
 - Not implemented yet
 ```
+
+## Change log]
+
+* v2.1.0
+  * null search value are now intepreted as search for null value on field
