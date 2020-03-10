@@ -1,5 +1,5 @@
 import * as util from 'util';
-import { assign, trim, lowerCase, merge } from 'lodash';
+import { assign, trim, lowerCase, merge, clone } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
 import { unflatten } from 'flat';
@@ -128,7 +128,7 @@ class DataTableModule {
   static init(schema: any, config?: IConfig) {
     const dataTableModule = new DataTableModule(schema);
     schema.statics.dataTable = function (query: IQuery, options?: IOptions) {
-      options = merge(config || {}, options || {});
+      options = merge({}, config || {}, options || {});
       dataTableModule.model = this;
       return dataTableModule.dataTable(query, options);
     };
