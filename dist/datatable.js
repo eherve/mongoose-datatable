@@ -42,7 +42,8 @@ class DataTableModule {
             projection: null,
             populate: [],
             sort: this.buildSort(query),
-            pagination: this.pagination(query)
+            pagination: this.pagination(query),
+            groupBy: query.groupBy
         };
         this.updateAggregateOptions(options, query, aggregate);
         return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
@@ -220,6 +221,9 @@ class DataTableModule {
             const columnSearch = {};
             return columnSearch[column.data] = null;
         }
+        if (instance === 'Mixed') {
+            instance = this.tryDeductMixedFromValue(search.value);
+        }
         switch (instance) {
             case 'String':
                 return this.buildColumnSearchString(options, query, column, field, search, global);
@@ -242,9 +246,24 @@ class DataTableModule {
         }
         return null;
     }
+    tryDeductMixedFromValue(value) {
+        switch (typeof value) {
+            case 'string':
+                if (mongoose_1.Types.ObjectId.isValid(value)) {
+                    return 'ObjectID';
+                }
+                if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(value)) {
+                    return 'Date';
+                }
+                return 'String';
+            case 'boolean': return 'Boolean';
+            case 'number': return 'Number';
+        }
+        return 'Mixed';
+    }
     buildColumnSearchString(options, query, column, field, search, global) {
         this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-        if (!global && search.value.match(/^\/.*\/$/)) {
+        if (!global && (search.value).match(/^\/.*\/$/)) {
             try {
                 const columnSearch = {};
                 columnSearch[column.data] = new RegExp(`${search.value.substring(1, search.value.length - 1)}`, 'gi');
@@ -432,6 +451,9 @@ class DataTableModule {
             if (aggregateOptions.search) {
                 aggregate.push({ $match: aggregateOptions.search });
             }
+            if (aggregateOptions.groupBy) {
+                this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
+            }
             if (aggregateOptions.sort) {
                 aggregate.push({ $sort: aggregateOptions.sort });
             }
@@ -446,6 +468,30 @@ class DataTableModule {
             this.debug(options.logger, aggregate);
             return this.model.aggregate(aggregate).allowDiskUse(true);
         });
+    }
+    buildGroupBy(aggregateOptions) {
+        const aggregate = [];
+        const _id = {};
+        let id = [];
+        aggregateOptions.groupBy.forEach((gb, i) => {
+            lodash_1.set(_id, gb, `$${gb}`);
+            id = id.concat({ $toString: `$_id.${gb}` });
+            const groupBy = {};
+            if (i < aggregateOptions.groupBy.length - 1) {
+                groupBy[`gb${i}`] = { id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` };
+            }
+            else {
+                groupBy.groupBy = [];
+                while (i--) {
+                    groupBy.groupBy.push(`$data.gb${i}`);
+                }
+                groupBy.groupBy.push({ id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` });
+            }
+            aggregate.push({ $group: { _id: lodash_1.clone(_id), groupByCount: { $sum: 1 }, data: { $push: "$$ROOT" } } });
+            aggregate.push({ $unwind: '$data' });
+            aggregate.push({ $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } } });
+        });
+        return aggregate;
     }
     debug(logger, ...args) {
         const l = logger || this.logger;

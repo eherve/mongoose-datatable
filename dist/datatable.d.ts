@@ -28,6 +28,7 @@ export interface IQuery {
     start: string;
     length: string;
     search?: ISearch;
+    groupBy?: string[];
 }
 export declare type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
 export interface IOptions {
@@ -71,6 +72,7 @@ declare class DataTableModule {
     private getSearch;
     private chunkSearch;
     private buildColumnSearch;
+    private tryDeductMixedFromValue;
     private buildColumnSearchString;
     private buildColumnSearchBoolean;
     private buildColumnSearchNumber;
@@ -83,6 +85,7 @@ declare class DataTableModule {
     private recordsTotal;
     private recordsFiltered;
     private data;
+    private buildGroupBy;
     private debug;
 }
 export default DataTableModule;

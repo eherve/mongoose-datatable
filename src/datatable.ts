@@ -1,5 +1,5 @@
 import * as util from 'util';
-import { assign, trim, lowerCase, merge, clone } from 'lodash';
+import { assign, trim, lowerCase, merge, set, clone } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
 import { unflatten } from 'flat';
@@ -73,6 +73,7 @@ interface IAggregateOptions {
   search?: any;
   sort: ISort;
   pagination: IPagination;
+  groupBy?: string[];
 }
 
 export interface IQuery {
@@ -82,6 +83,7 @@ export interface IQuery {
   start: string;
   length: string;
   search?: ISearch;
+  groupBy?: string[];
 }
 
 export type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
@@ -142,7 +144,8 @@ class DataTableModule {
       projection: null,
       populate: [],
       sort: this.buildSort(query),
-      pagination: this.pagination(query)
+      pagination: this.pagination(query),
+      groupBy: query.groupBy
     };
     this.updateAggregateOptions(options, query, aggregate);
     return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
@@ -170,7 +173,9 @@ class DataTableModule {
   private updateAggregateOptions(options: IOptions, query: IQuery, aggregate: IAggregateOptions): void {
     let search: any[] = [], csearch: any[] = [];
     const projection: any = {};
-    if (query.search && query.search.value !== undefined && query.search.value !== '') { query.search.chunks = this.chunkSearch(query.search.value); }
+    if (query.search && query.search.value !== undefined && query.search.value !== '') {
+      query.search.chunks = this.chunkSearch(query.search.value);
+    }
     query.columns.forEach(column => {
       const field = this.fetchField(options, query, column, aggregate.populate);
       if (!field) { return; }
@@ -293,6 +298,7 @@ class DataTableModule {
       const columnSearch: any = {};
       return columnSearch[column.data] = null;
     }
+    if (instance === 'Mixed') { instance = this.tryDeductMixedFromValue(search.value); }
     switch (instance) {
       case 'String':
         return this.buildColumnSearchString(options, query, column, field, search, global);
@@ -312,9 +318,21 @@ class DataTableModule {
     return null;
   }
 
+  private tryDeductMixedFromValue(value: any): string {
+    switch (typeof value) {
+      case 'string':
+        if (Types.ObjectId.isValid(value)) { return 'ObjectID'; }
+        if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(value)) { return 'Date'; }
+        return 'String';
+      case 'boolean': return 'Boolean';
+      case 'number': return 'Number';
+    }
+    return 'Mixed';
+  }
+
   private buildColumnSearchString(options: IOptions, query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean): any {
     this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-    if (!global && search.value.match(/^\/.*\/$/)) {
+    if (!global && (search.value).match(/^\/.*\/$/)) {
       try {
         const columnSearch: any = {};
         columnSearch[column.data] = new RegExp(`${search.value.substring(1, search.value.length - 1)}`, 'gi');
@@ -460,6 +478,7 @@ class DataTableModule {
     aggregateOptions.populate.forEach(data => aggregate.push(data));
     if (aggregateOptions.projection) { aggregate.push({ $project: aggregateOptions.projection }); }
     if (aggregateOptions.search) { aggregate.push({ $match: aggregateOptions.search }); }
+    if (aggregateOptions.groupBy) { this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb)); }
     if (aggregateOptions.sort) { aggregate.push({ $sort: aggregateOptions.sort }); }
     if (aggregateOptions.pagination) {
       if (aggregateOptions.pagination.start) { aggregate.push({ $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length }); }
@@ -467,6 +486,28 @@ class DataTableModule {
     }
     this.debug(options.logger, aggregate);
     return this.model.aggregate(aggregate).allowDiskUse(true);
+  }
+
+  private buildGroupBy(aggregateOptions: IAggregateOptions): any[] {
+    const aggregate: any[] = [];
+    const _id: any = {};
+    let id: any[] = [];
+    aggregateOptions.groupBy.forEach((gb, i) => {
+      set(_id, gb, `$${gb}`);
+      id = id.concat({ $toString: `$_id.${gb}` });
+      const groupBy: any = {};
+      if (i < aggregateOptions.groupBy.length - 1) {
+        groupBy[`gb${i}`] = { id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` };
+      } else {
+        groupBy.groupBy = [];
+        while (i--) { groupBy.groupBy.push(`$data.gb${i}`); }
+        groupBy.groupBy.push({ id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` })
+      }
+      aggregate.push({ $group: { _id: clone(_id), groupByCount: { $sum: 1 }, data: { $push: "$$ROOT" } } });
+      aggregate.push({ $unwind: '$data' });
+      aggregate.push({ $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } } });
+    });
+    return aggregate;
   }
 
   private debug(logger: ILogger, ...args: any) {

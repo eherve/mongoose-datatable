@@ -1,7 +1,7 @@
 {
   "name": "mongoose-datatable",
   "description": "Server side dataTable request support for mongoose",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/eherve/mongoose-datatable.git"
@@ -15,7 +15,7 @@
     "dist/*"
   ],
   "scripts": {
-    "build": "rm dist/* && tsc -d",
+    "build": "rm dist/* ; tsc -d",
     "test": "docker run -p 4242:27017 --name datatable --rm -d mongo && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
     "prepare": "npm run build"
   },
