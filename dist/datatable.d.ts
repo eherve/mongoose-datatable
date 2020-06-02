@@ -87,5 +87,6 @@ declare class DataTableModule {
     private data;
     private buildGroupBy;
     private debug;
+    private warn;
 }
 export default DataTableModule;

@@ -202,7 +202,7 @@ class DataTableModule {
     while (path.length) {
       field = schema.path(path) || this.getField(schema, path);
       if (!field) {
-        return (options.logger || this.logger).warn(`field path ${column.data} not found !`);
+        return this.warn(options.logger, `field path ${column.data} not found !`);
       }
       base += ((base.length ? '.' : '') + field.path);
       path = path.substring(field.path.length + 1);
@@ -215,7 +215,7 @@ class DataTableModule {
         }
       } else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {
         if (inArray) {
-          (options.logger || this.logger).warn(`lookup on submodel array [${column.data}] not managed !`);
+          this.warn(options.logger, `lookup on submodel array [${column.data}] not managed !`);
           return;
         }
         model = model.model(field.caster.options.ref);
@@ -230,7 +230,7 @@ class DataTableModule {
       } else { break; }
     }
     if (!field) {
-      (options.logger || this.logger).warn(`field path ${column.data} not found !`);
+      this.warn(options.logger, `field path ${column.data} not found !`);
     }
     return field;
   }
@@ -313,7 +313,7 @@ class DataTableModule {
       default:
         if (options.handlers && options.handlers.default) { return options.handlers.default(query, column, field, search, global); }
         if (this.config.handlers.default) { return this.config.handlers.default(query, column, field, search, global); }
-        (options.logger || this.logger).warn(`buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
+        this.warn(options.logger, `buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
     }
     return null;
   }
@@ -390,7 +390,7 @@ class DataTableModule {
         default: columnSearch[column.data] = from.valueOf();
       }
       return columnSearch;
-    } else { (options.logger || this.logger).warn(`buildColumnSearchNumber unmanaged search value '${search.value}`); }
+    } else { this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${search.value}`); }
     return null;
   }
 
@@ -411,12 +411,12 @@ class DataTableModule {
       const $2 = RegExp.$2;
       const from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
       if (!(from instanceof Date) || isNaN(from.valueOf())) {
-        return (options.logger || this.logger).warn(`buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
+        return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
       }
       const $3 = RegExp.$3;
       const to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
       if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-        return (options.logger || this.logger).warn(`buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
+        return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
       }
       const columnSearch: any = {};
       switch (op) {
@@ -429,7 +429,7 @@ class DataTableModule {
         default: columnSearch[column.data] = from;
       }
       return columnSearch;
-    } else { (options.logger || this.logger).warn(`buildColumnSearchDate unmanaged search value '${search.value}`); }
+    } else { this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}`); }
     return null;
   }
 
@@ -514,6 +514,13 @@ class DataTableModule {
     const l = logger || this.logger;
     if (l && l.debug) {
       l.debug.apply(l, args);
+    }
+  }
+
+  private warn(logger: ILogger, ...args: any) {
+    const l = logger || this.logger;
+    if (l && l.warn) {
+      l.warn.apply(l, args);
     }
   }
 
