@@ -496,8 +496,8 @@ class DataTableModule {
     debug(logger, ...args) {
         const l = logger || this.logger;
         if (l && l.debug) {
+            l.debug.apply(l, args);
         }
-        l.debug.apply(l, args);
     }
 }
 DataTableModule.CONFIG = {
