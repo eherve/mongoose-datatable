@@ -513,7 +513,8 @@ class DataTableModule {
   private debug(logger: ILogger, ...args: any) {
     const l = logger || this.logger;
     if (l && l.debug) {
-    } l.debug.apply(l, args);
+      l.debug.apply(l, args);
+    }
   }
 
 }
