@@ -56,8 +56,8 @@ declare class DataTableModule {
     private schema;
     static CONFIG: IConfig;
     private _config;
-    private readonly config;
-    private readonly logger;
+    private get config();
+    private get logger();
     private model;
     static configure(config?: IConfig): IConfig;
     static init(schema: any, config?: IConfig): void;

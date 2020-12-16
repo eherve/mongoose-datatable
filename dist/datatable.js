@@ -71,13 +71,13 @@ class DataTableModule {
         return sort;
     }
     updateAggregateOptions(options, query, aggregate) {
-        let search = [], csearch = [];
+        let search = [], csearch = [], psearch = [];
         const projection = {};
         if (query.search && query.search.value !== undefined && query.search.value !== '') {
             query.search.chunks = this.chunkSearch(query.search.value);
         }
         query.columns.forEach(column => {
-            const field = this.fetchField(options, query, column, aggregate.populate);
+            const { field, populated } = this.fetchField(options, query, column, aggregate.populate);
             if (!field) {
                 return;
             }
@@ -90,29 +90,38 @@ class DataTableModule {
                 }
                 const s = this.getSearch(options, query, column, field);
                 search = search.concat(s.search);
-                csearch = csearch.concat(s.csearch);
+                if (populated) {
+                    psearch = psearch.concat(s.csearch);
+                }
+                else {
+                    csearch = csearch.concat(s.csearch);
+                }
             }
             projection[column.data] = 1;
         });
         this.addProjection(options, aggregate, projection);
-        this.addSearch(options, aggregate, search, csearch);
+        aggregate.search = this.addSearch(csearch);
+        aggregate.afterPopulateSearch = this.addSearch(psearch, search, options.conditions);
     }
     fetchField(options, query, column, populate) {
         const group = [];
+        let populated = false;
         let field = this.schema.path(column.data);
         if (field) {
-            return field;
+            return { field, populated };
         }
         let path = column.data, model = this.model, schema = this.schema, base = '', inArray = false;
         while (path.length) {
             field = schema.path(path) || this.getField(schema, path);
             if (!field) {
-                return this.warn(options.logger, `field path ${column.data} not found !`);
+                this.warn(options.logger, `field path ${column.data} not found !`);
+                return;
             }
             base += ((base.length ? '.' : '') + field.path);
             path = path.substring(field.path.length + 1);
             if (field.options && field.options.ref) {
-                model = model.model(field.options.ref);
+                populated = true;
+                model = model.base.model(field.options.ref);
                 schema = model.schema;
                 if (!populate.find((l) => l.$lookup && l.$lookup.localField === base)) {
                     populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
@@ -120,11 +129,12 @@ class DataTableModule {
                 }
             }
             else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {
+                populated = true;
                 if (inArray) {
                     this.warn(options.logger, `lookup on submodel array [${column.data}] not managed !`);
                     return;
                 }
-                model = model.model(field.caster.options.ref);
+                model = model.base.model(field.caster.options.ref);
                 schema = model.schema;
                 if (!populate.find((l) => l.$lookup && l.$lookup.localField === base)) {
                     populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
@@ -142,7 +152,7 @@ class DataTableModule {
         if (!field) {
             this.warn(options.logger, `field path ${column.data} not found !`);
         }
-        return field;
+        return { field, populated };
     }
     getField(schema, path) {
         var baseField, tail = path, base, indexSep, index = -1, count = 0;
@@ -168,19 +178,21 @@ class DataTableModule {
             aggregate.projection = flat_1.unflatten(lodash_1.merge(select, projection || {}), { overwrite: true });
         }
     }
-    addSearch(options, aggregate, search, csearch) {
-        if (options.conditions || search.length || csearch.length) {
-            aggregate.search = { $and: [] };
-            if (options.conditions) {
-                aggregate.search.$and.push(options.conditions);
+    addSearch(csearch, search = [], conditions) {
+        let asearch;
+        if (conditions || search.length || csearch.length) {
+            asearch = { $and: [] };
+            if (conditions) {
+                asearch.$and.push(conditions);
             }
             if (search.length) {
-                aggregate.search.$and.push({ $or: search });
+                asearch.$and.push({ $or: search });
             }
             if (csearch.length) {
-                aggregate.search.$and = aggregate.search.$and.concat(csearch);
+                asearch.$and = asearch.$and.concat(csearch);
             }
         }
+        return asearch;
     }
     getSearch(options, query, column, field) {
         const search = [], csearch = [];
@@ -277,7 +289,7 @@ class DataTableModule {
             columnSearch[column.data] = new RegExp(`${escapeStringRegexp(chunk)}`, 'gi');
             s.push(columnSearch);
         });
-        return s.length > 0 ? { $or: s } : null;
+        return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
     buildColumnSearchBoolean(options, query, column, field, search, global) {
         this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
@@ -308,7 +320,7 @@ class DataTableModule {
                 columnSearch[column.data] = (new Number(chunk)).valueOf();
                 s.push(columnSearch);
             });
-            return s.length > 0 ? { $or: s } : null;
+            return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
         }
         if (/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/.test(search.value)) {
             const op = RegExp.$1;
@@ -355,7 +367,7 @@ class DataTableModule {
                 columnSearch[column.data] = (new Number(chunk)).valueOf();
                 s.push(columnSearch);
             });
-            return s.length > 0 ? { $or: s } : null;
+            return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
         }
         if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
             const op = RegExp.$1;
@@ -444,12 +456,16 @@ class DataTableModule {
     data(options, aggregateOptions) {
         return __awaiter(this, void 0, void 0, function* () {
             const aggregate = [];
-            aggregateOptions.populate.forEach(data => aggregate.push(data));
-            if (aggregateOptions.projection) {
-                aggregate.push({ $project: aggregateOptions.projection });
-            }
+            const populatedFields = [];
             if (aggregateOptions.search) {
                 aggregate.push({ $match: aggregateOptions.search });
+            }
+            aggregateOptions.populate.forEach(data => aggregate.push(data));
+            if (aggregateOptions.afterPopulateSearch) {
+                aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+            }
+            if (aggregateOptions.projection) {
+                aggregate.push({ $project: aggregateOptions.projection });
             }
             if (aggregateOptions.groupBy) {
                 this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
@@ -465,7 +481,7 @@ class DataTableModule {
                     aggregate.push({ $limit: aggregateOptions.pagination.length });
                 }
             }
-            this.debug(options.logger, aggregate);
+            this.debug(options.logger, util.inspect(aggregate, { depth: null }));
             return this.model.aggregate(aggregate).allowDiskUse(true);
         });
     }

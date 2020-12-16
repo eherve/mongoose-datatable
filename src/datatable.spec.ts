@@ -111,7 +111,24 @@ const dateQuery: IQuery = {
   search: { value: null, regex: false }
 };
 
-const nologger = { debug: () => { }, info: () => { }, warn: () => { }, error: () => { } } as any;
+
+const subCodeQuery: IQuery = {
+  draw: '2',
+  columns: [
+    { data: 'first_name', name: null, searchable: true, orderable: true, search: { value: 'Antonia', regex: false } },
+    { data: 'last_name', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
+    { data: 'activated', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
+    { data: 'position', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
+    { data: 'start_date', name: null, searchable: false, orderable: false, search: { value: null, regex: false } },
+    { data: 'sub_schema.code', name: null, searchable: true, orderable: false, search: { value: 'FR03', regex: false } }
+  ],
+  order: [{ column: 3, dir: 'asc' }],
+  start: '0',
+  length: '10',
+  search: { value: null, regex: false }
+};
+
+const logger = { debug: console.log, info: () => { }, warn: () => { }, error: () => { } } as any;
 
 describe('Datatable Module', () => {
 
@@ -141,7 +158,7 @@ describe('Datatable Module', () => {
     let tests: any[];
 
     before(done => {
-      Datatable.configure({ logger: nologger });
+      Datatable.configure({});
       mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
       mongoose.connection.on('error', done);
       mongoose.connection.on('open', () => seed().then((res) => {
@@ -211,13 +228,23 @@ describe('Datatable Module', () => {
     });
 
     it('should find entries with start_date between 2019.01.02 and 2019.01.04', async () => {
-      return model.dataTable(dateQuery, { logger: nologger }).then((data: any) => {
+      return model.dataTable(dateQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
         expect(data.data).to.have.lengthOf(3);
         expect((data.data[0].start_date as Date).toDateString()).to.be.equals((new Date('2019.01.02').toDateString()));
         expect((data.data[1].start_date as Date).toDateString()).to.be.equals((new Date('2019.01.03').toDateString()));
         expect((data.data[2].start_date as Date).toDateString()).to.be.equals((new Date('2019.01.04').toDateString()));
+      });
+    });
+
+    it('should find entries with sub_schema code equals to FR03', async () => {
+      return model.dataTable(subCodeQuery).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        expect(data.data).to.have.lengthOf(1);
+        expect(data.data[0]).to.have.property('sub_schema');
+        expect(data.data[0].sub_schema).to.have.property('code', 'FR03');
       });
     });
 
