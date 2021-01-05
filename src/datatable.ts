@@ -178,16 +178,16 @@ class DataTableModule {
       query.search.chunks = this.chunkSearch(query.search.value);
     }
     query.columns.forEach(column => {
-      const { field, populated } = this.fetchField(options, query, column, aggregate.populate);
-      if (!field) { return; }
-      if (!this.isSelectable(field)) { return; }
+      const finfo = this.fetchField(options, query, column, aggregate.populate);
+      if (!finfo) { return; }
+      if (!this.isSelectable(finfo.field)) { return; }
       if (this.isTrue(column.searchable)) {
         if (column.search && column.search.value !== undefined && column.search.value !== '') {
           column.search.chunks = this.chunkSearch(column.search.value);
         }
-        const s = this.getSearch(options, query, column, field);
+        const s = this.getSearch(options, query, column, finfo.field);
         search = search.concat(s.search);
-        if (populated) {
+        if (finfo.populated) {
           psearch = psearch.concat(s.csearch);
         } else {
           csearch = csearch.concat(s.csearch);
