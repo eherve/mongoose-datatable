@@ -482,18 +482,17 @@ class DataTableModule {
   }
 
   private async recordsFiltered(options: IOptions, aggregateOptions: IAggregateOptions, recordsTotal: number): Promise<number> {
-    if (!aggregateOptions.search) { return Promise.resolve(recordsTotal); }
-    if (aggregateOptions.populate.length === 0) { return this.model.countDocuments(aggregateOptions.search); }
+    if (!aggregateOptions.search && !aggregateOptions.afterPopulateSearch) { return Promise.resolve(recordsTotal); }
     const aggregate: any[] = [];
+    if (aggregateOptions.search) { aggregate.push({ $match: aggregateOptions.search }); }
     aggregateOptions.populate.forEach(data => aggregate.push(data));
-    aggregate.push({ $match: aggregateOptions.search });
+    if (aggregateOptions.afterPopulateSearch) { aggregate.push({ $match: aggregateOptions.afterPopulateSearch }); }
     aggregate.push({ $count: 'filtered' });
     return this.model.aggregate(aggregate).then(data => data.length === 1 ? data[0].filtered : 0);
   }
 
   private async data(options: IOptions, aggregateOptions: IAggregateOptions): Promise<any[]> {
     const aggregate: any[] = [];
-    const populatedFields: any[] = [];
     if (aggregateOptions.search) { aggregate.push({ $match: aggregateOptions.search }); }
     aggregateOptions.populate.forEach(data => aggregate.push(data));
     if (aggregateOptions.afterPopulateSearch) { aggregate.push({ $match: aggregateOptions.afterPopulateSearch }); }

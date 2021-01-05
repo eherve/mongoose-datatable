@@ -440,15 +440,17 @@ class DataTableModule {
     }
     recordsFiltered(options, aggregateOptions, recordsTotal) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!aggregateOptions.search) {
+            if (!aggregateOptions.search && !aggregateOptions.afterPopulateSearch) {
                 return Promise.resolve(recordsTotal);
             }
-            if (aggregateOptions.populate.length === 0) {
-                return this.model.countDocuments(aggregateOptions.search);
-            }
             const aggregate = [];
+            if (aggregateOptions.search) {
+                aggregate.push({ $match: aggregateOptions.search });
+            }
             aggregateOptions.populate.forEach(data => aggregate.push(data));
-            aggregate.push({ $match: aggregateOptions.search });
+            if (aggregateOptions.afterPopulateSearch) {
+                aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+            }
             aggregate.push({ $count: 'filtered' });
             return this.model.aggregate(aggregate).then(data => data.length === 1 ? data[0].filtered : 0);
         });
@@ -456,7 +458,6 @@ class DataTableModule {
     data(options, aggregateOptions) {
         return __awaiter(this, void 0, void 0, function* () {
             const aggregate = [];
-            const populatedFields = [];
             if (aggregateOptions.search) {
                 aggregate.push({ $match: aggregateOptions.search });
             }
