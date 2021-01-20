@@ -63,12 +63,14 @@ class DataTableModule {
         const sort = {};
         query.order.forEach(order => {
             const column = query.columns[order.column];
-            if (column && this.isFalse(column.orderable)) {
-                return;
+            if (column) {
+                if (this.isFalse(column.orderable)) {
+                    return;
+                }
+                sort[column.data] = order.dir === 'asc' ? 1 : -1;
             }
-            sort[column.data] = order.dir === 'asc' ? 1 : -1;
         });
-        return sort;
+        return !!Object.keys(sort).length ? sort : null;
     }
     updateAggregateOptions(options, query, aggregate) {
         let search = [], csearch = [], psearch = [];
@@ -103,56 +105,101 @@ class DataTableModule {
         aggregate.search = this.addSearch(csearch);
         aggregate.afterPopulateSearch = this.addSearch(psearch, search, options.conditions);
     }
+    fetchFieldRef(data) {
+        data.populated = true;
+        data.model = data.model.base.model(data.field.options.ref);
+        data.schema = data.model.schema;
+        if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
+            data.populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: data.base } });
+            data.populate.push({ $unwind: { path: `$${data.base}`, preserveNullAndEmptyArrays: true } });
+        }
+    }
+    fetchFieldArrayRef(data) {
+        data.populated = true;
+        data.model = data.model.base.model(data.field.options.ref);
+        data.schema = data.model.schema;
+        if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
+            const refProperty = data.base.substr(data.inArray.length + 1);
+            const lookupProperty = `${data.inArray}__${refProperty}`;
+            data.populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: lookupProperty } });
+            data.populate.push({
+                $addFields: {
+                    [data.inArray]: {
+                        $map: {
+                            input: `$${data.inArray}`,
+                            as: 'elmt',
+                            in: {
+                                $mergeObjects: ['$$elmt', {
+                                        [refProperty]: {
+                                            $arrayElemAt: [
+                                                {
+                                                    $filter: { input: `$${lookupProperty}`, as: 'lookup', cond: { $eq: [`$$elmt.${refProperty}`, '$$lookup._id'] } }
+                                                }, 0
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
     fetchField(options, query, column, populate) {
-        const group = [];
         let populated = false;
         let field = this.schema.path(column.data);
         if (field) {
             return { field, populated };
         }
-        let path = column.data, model = this.model, schema = this.schema, base = '', inArray = false;
-        while (path.length) {
-            field = schema.path(path) || this.getField(schema, path);
-            if (!field) {
+        const data = { populate, populated, field, path: column.data, model: this.model, schema: this.schema, base: '', inArray: null };
+        while (data.path.length) {
+            data.field = data.schema.path(data.path) || this.getField(data.schema, data.path);
+            if (!data.field) {
                 this.warn(options.logger, `field path ${column.data} not found !`);
                 return;
             }
-            base += ((base.length ? '.' : '') + field.path);
-            path = path.substring(field.path.length + 1);
-            if (field.options && field.options.ref) {
-                populated = true;
-                model = model.base.model(field.options.ref);
-                schema = model.schema;
-                if (!populate.find((l) => l.$lookup && l.$lookup.localField === base)) {
-                    populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
-                    populate.push({ $unwind: { path: `$${base}`, preserveNullAndEmptyArrays: true } });
+            data.base += ((data.base.length ? '.' : '') + data.field.path);
+            data.path = data.path.substring(data.field.path.length + 1);
+            // ref field
+            if (data.field.options && data.field.options.ref && !data.inArray) {
+                this.fetchFieldRef(data);
+                continue;
+            }
+            // ref field in array
+            if (data.field.options && data.field.options.ref && !!data.inArray) {
+                this.fetchFieldArrayRef(data);
+                continue;
+            }
+            // ref array field
+            if (data.field.instance === 'Array' && data.field.caster && data.field.caster.options && data.field.caster.options.ref) {
+                data.populated = true;
+                data.model = data.model.base.model(data.field.caster.options.ref);
+                data.schema = data.model.schema;
+                if (!populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
+                    populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: data.base } });
                 }
+                continue;
             }
-            else if (field.instance === 'Array' && field.caster && field.caster.options && field.caster.options.ref) {
-                populated = true;
-                if (inArray) {
-                    this.warn(options.logger, `lookup on submodel array [${column.data}] not managed !`);
-                    return;
+            // array field
+            if (data.field.instance === 'Array') {
+                data.inArray = data.base;
+                if (data.field.schema) {
+                    data.schema = data.field.schema;
                 }
-                model = model.base.model(field.caster.options.ref);
-                schema = model.schema;
-                if (!populate.find((l) => l.$lookup && l.$lookup.localField === base)) {
-                    populate.push({ $lookup: { from: model.collection.collectionName, localField: base, foreignField: '_id', as: base } });
-                }
+                continue;
             }
-            else if (field.instance === 'Array') {
-                inArray = true;
-                group.push(base);
-                schema = field.schema;
+            // sub schema
+            if (data.field.schema) {
+                data.schema = data.field.schema;
+                continue;
             }
-            else {
-                break;
-            }
+            break;
         }
-        if (!field) {
+        if (!data.field) {
             this.warn(options.logger, `field path ${column.data} not found !`);
         }
-        return { field, populated };
+        return { field: data.field, populated: data.populated };
     }
     getField(schema, path) {
         var baseField, tail = path, base, indexSep, index = -1, count = 0;

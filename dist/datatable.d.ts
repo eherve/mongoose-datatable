@@ -1,9 +1,7 @@
 import { Schema } from 'mongoose';
 interface ILogger {
     debug: (...data: any) => void;
-    info: (...data: any) => void;
     warn: (...data: any) => void;
-    error: (...data: any) => void;
 }
 export interface IColumn {
     data: string;
@@ -65,6 +63,8 @@ declare class DataTableModule {
     private dataTable;
     private buildSort;
     private updateAggregateOptions;
+    private fetchFieldRef;
+    private fetchFieldArrayRef;
     private fetchField;
     private getField;
     private addProjection;
