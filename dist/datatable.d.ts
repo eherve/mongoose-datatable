@@ -15,7 +15,7 @@ interface IOrder {
     dir: string;
 }
 export interface ISearch {
-    value: string;
+    value: any;
     regex: boolean;
     chunks?: string[];
 }
@@ -70,11 +70,13 @@ declare class DataTableModule {
     private addProjection;
     private addSearch;
     private getSearch;
-    private chunkSearch;
+    private getChunkSearch;
     private buildColumnSearch;
     private tryDeductMixedFromValue;
+    private buildGlobalColumnSearchString;
     private buildColumnSearchString;
     private buildColumnSearchBoolean;
+    private buildGlobalColumnSearchNumber;
     private buildColumnSearchNumber;
     private buildColumnSearchDate;
     private buildColumnSearchObjectId;

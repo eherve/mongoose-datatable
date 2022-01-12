@@ -14,14 +14,17 @@ const lodash_1 = require("lodash");
 const escapeStringRegexp = require("escape-string-regexp");
 const mongoose_1 = require("mongoose");
 const flat_1 = require("flat");
-;
 class DataTableModule {
     constructor(schema) {
         this.schema = schema;
         this._config = DataTableModule.CONFIG;
     }
-    get config() { return this._config; }
-    get logger() { return this._config.logger; }
+    get config() {
+        return this._config;
+    }
+    get logger() {
+        return this._config.logger;
+    }
     static configure(config) {
         if (config) {
             DataTableModule.CONFIG = lodash_1.assign(DataTableModule.CONFIG, config);
@@ -43,15 +46,18 @@ class DataTableModule {
             populate: [],
             sort: this.buildSort(query),
             pagination: this.pagination(query),
-            groupBy: query.groupBy
+            groupBy: query.groupBy,
         };
         this.updateAggregateOptions(options, query, aggregate);
-        return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options))
-            .then(recordsTotal => {
-            return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal))
-                .then(recordsFiltered => {
+        return (options.disableCount === true ? Promise.resolve(-1) : this.recordsTotal(options)).then(recordsTotal => {
+            return (options.disableCount === true ? Promise.resolve(-1) : this.recordsFiltered(options, aggregate, recordsTotal)).then(recordsFiltered => {
                 return this.data(options, aggregate).then(data => {
-                    return Promise.resolve({ draw: query.draw, recordsTotal, recordsFiltered, data });
+                    return Promise.resolve({
+                        draw: query.draw,
+                        recordsTotal,
+                        recordsFiltered,
+                        data,
+                    });
                 });
             });
         });
@@ -76,7 +82,7 @@ class DataTableModule {
         let search = [], csearch = [], psearch = [];
         const projection = {};
         if (query.search && query.search.value !== undefined && query.search.value !== '') {
-            query.search.chunks = this.chunkSearch(query.search.value);
+            query.search.chunks = this.getChunkSearch(query.search.value);
         }
         query.columns.forEach(column => {
             const finfo = this.fetchField(options, query, column, aggregate.populate);
@@ -88,7 +94,7 @@ class DataTableModule {
             }
             if (this.isTrue(column.searchable)) {
                 if (column.search && column.search.value !== undefined && column.search.value !== '') {
-                    column.search.chunks = this.chunkSearch(column.search.value);
+                    column.search.chunks = this.getChunkSearch(column.search.value);
                 }
                 const s = this.getSearch(options, query, column, finfo.field);
                 search = search.concat(s.search);
@@ -110,8 +116,17 @@ class DataTableModule {
         data.model = data.model.base.model(data.field.options.ref);
         data.schema = data.model.schema;
         if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
-            data.populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: data.base } });
-            data.populate.push({ $unwind: { path: `$${data.base}`, preserveNullAndEmptyArrays: true } });
+            data.populate.push({
+                $lookup: {
+                    from: data.model.collection.collectionName,
+                    localField: data.base,
+                    foreignField: '_id',
+                    as: data.base,
+                },
+            });
+            data.populate.push({
+                $unwind: { path: `$${data.base}`, preserveNullAndEmptyArrays: true },
+            });
         }
     }
     fetchFieldArrayRef(data) {
@@ -121,7 +136,14 @@ class DataTableModule {
         if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
             const refProperty = data.base.substr(data.inArray.length + 1);
             const lookupProperty = `${data.inArray}__${refProperty}`;
-            data.populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: lookupProperty } });
+            data.populate.push({
+                $lookup: {
+                    from: data.model.collection.collectionName,
+                    localField: data.base,
+                    foreignField: '_id',
+                    as: lookupProperty,
+                },
+            });
             data.populate.push({
                 $addFields: {
                     [data.inArray]: {
@@ -129,20 +151,29 @@ class DataTableModule {
                             input: `$${data.inArray}`,
                             as: 'elmt',
                             in: {
-                                $mergeObjects: ['$$elmt', {
+                                $mergeObjects: [
+                                    '$$elmt',
+                                    {
                                         [refProperty]: {
                                             $arrayElemAt: [
                                                 {
-                                                    $filter: { input: `$${lookupProperty}`, as: 'lookup', cond: { $eq: [`$$elmt.${refProperty}`, '$$lookup._id'] } }
-                                                }, 0
-                                            ]
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
+                                                    $filter: {
+                                                        input: `$${lookupProperty}`,
+                                                        as: 'lookup',
+                                                        cond: {
+                                                            $eq: [`$$elmt.${refProperty}`, '$$lookup._id'],
+                                                        },
+                                                    },
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
             });
         }
     }
@@ -152,14 +183,23 @@ class DataTableModule {
         if (field) {
             return { field, populated };
         }
-        const data = { populate, populated, field, path: column.data, model: this.model, schema: this.schema, base: '', inArray: null };
+        const data = {
+            populate,
+            populated,
+            field,
+            path: column.data,
+            model: this.model,
+            schema: this.schema,
+            base: '',
+            inArray: null,
+        };
         while (data.path.length) {
             data.field = data.schema.path(data.path) || this.getField(data.schema, data.path);
             if (!data.field) {
                 this.warn(options.logger, `field path ${column.data} not found !`);
                 return;
             }
-            data.base += ((data.base.length ? '.' : '') + data.field.path);
+            data.base += (data.base.length ? '.' : '') + data.field.path;
             data.path = data.path.substring(data.field.path.length + 1);
             // ref field
             if (data.field.options && data.field.options.ref && !data.inArray) {
@@ -172,12 +212,22 @@ class DataTableModule {
                 continue;
             }
             // ref array field
-            if (data.field.instance === 'Array' && data.field.caster && data.field.caster.options && data.field.caster.options.ref) {
+            if (data.field.instance === 'Array' &&
+                data.field.caster &&
+                data.field.caster.options &&
+                data.field.caster.options.ref) {
                 data.populated = true;
                 data.model = data.model.base.model(data.field.caster.options.ref);
                 data.schema = data.model.schema;
                 if (!populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
-                    populate.push({ $lookup: { from: data.model.collection.collectionName, localField: data.base, foreignField: '_id', as: data.base } });
+                    populate.push({
+                        $lookup: {
+                            from: data.model.collection.collectionName,
+                            localField: data.base,
+                            foreignField: '_id',
+                            as: data.base,
+                        },
+                    });
                 }
                 continue;
             }
@@ -217,12 +267,14 @@ class DataTableModule {
     }
     addProjection(options, aggregate, projection) {
         if (options.select || projection !== {}) {
-            const select = typeof options.select === 'string' ?
-                options.select.split(' ').reduce((p, c) => (p[c] = 1, p), {}) :
-                Array.isArray(options.select) ?
-                    options.select.reduce((p, c) => (p[c] = 1, p), {}) :
-                    options.select;
-            aggregate.projection = flat_1.unflatten(lodash_1.merge(select, projection || {}), { overwrite: true });
+            const select = typeof options.select === 'string'
+                ? options.select.split(' ').reduce((p, c) => ((p[c] = 1), p), {})
+                : Array.isArray(options.select)
+                    ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
+                    : options.select;
+            aggregate.projection = flat_1.unflatten(lodash_1.merge(select, projection || {}), {
+                overwrite: true,
+            });
         }
     }
     addSearch(csearch, search = [], conditions) {
@@ -257,16 +309,22 @@ class DataTableModule {
         }
         return { search, csearch };
     }
-    chunkSearch(search) {
+    getChunkSearch(search) {
         let chunks = [];
+        if (lodash_1.isArray(search)) {
+            lodash_1.each(search, s => (chunks = lodash_1.concat(chunks, this.getChunkSearch(s))));
+            return chunks;
+        }
         search = search !== null && search !== undefined ? search.toString() : '';
-        chunks = chunks.concat(search.replace(/(?:"([^"]*)")/g, (match, word) => {
+        return search
+            .replace(/(?:"([^"]*)")/g, (match, word) => {
             if (word && word.length > 0) {
                 chunks.push(word);
             }
             return '';
-        }).split(/[ \t]+/).filter(s => lodash_1.trim(s) !== ''));
-        return chunks;
+        })
+            .split(/[ \t]+/)
+            .filter(s => lodash_1.trim(s) !== '');
     }
     buildColumnSearch(options, query, column, field, search, global) {
         let instance = field.instance;
@@ -278,22 +336,30 @@ class DataTableModule {
         }
         if (search.value === null) {
             const columnSearch = {};
-            return columnSearch[column.data] = null;
+            return (columnSearch[column.data] = null);
         }
         if (instance === 'Mixed') {
             instance = this.tryDeductMixedFromValue(search.value);
         }
         switch (instance) {
             case 'String':
-                return this.buildColumnSearchString(options, query, column, field, search, global);
+                if (global)
+                    return this.buildGlobalColumnSearchString(options, column, search);
+                return this.buildColumnSearchString(options, column, search);
             case 'Boolean':
-                return this.buildColumnSearchBoolean(options, query, column, field, search, global);
+                if (global)
+                    break;
+                return this.buildColumnSearchBoolean(options, column, search);
             case 'Number':
-                return this.buildColumnSearchNumber(options, query, column, field, search, global);
+                if (global)
+                    return this.buildGlobalColumnSearchNumber(options, column, search);
+                return this.buildColumnSearchNumber(options, column, search);
             case 'Date':
-                return this.buildColumnSearchDate(options, query, column, field, search, global);
+                if (global)
+                    break;
+                return this.buildColumnSearchDate(options, column, search);
             case 'ObjectID':
-                return this.buildColumnSearchObjectId(options, query, column, field, search, global);
+                return this.buildColumnSearchObjectId(options, column, search);
             default:
                 if (options.handlers && options.handlers.default) {
                     return options.handlers.default(query, column, field, search, global);
@@ -311,64 +377,62 @@ class DataTableModule {
                 if (mongoose_1.Types.ObjectId.isValid(value)) {
                     return 'ObjectID';
                 }
+                if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.]+)(?:,([0-9.]+))?$/.test(value)) {
+                    return 'Number';
+                }
                 if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(value)) {
                     return 'Date';
                 }
                 return 'String';
-            case 'boolean': return 'Boolean';
-            case 'number': return 'Number';
+            case 'boolean':
+                return 'Boolean';
+            case 'number':
+                return 'Number';
         }
         return 'Mixed';
     }
-    buildColumnSearchString(options, query, column, field, search, global) {
+    buildGlobalColumnSearchString(options, column, search) {
+        this.debug(options.logger, 'buildGlobalColumnSearchString:', column.data, search);
+        const s = lodash_1.map(search.chunks, chunk => ({
+            [column.data]: new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
+        }));
+        return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+    }
+    buildColumnSearchString(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-        if (!global && (search.value).match(/^\/.*\/$/)) {
-            try {
-                const columnSearch = {};
-                columnSearch[column.data] = new RegExp(`${search.value.substring(1, search.value.length - 1)}`, 'gi');
-                return columnSearch;
+        const s = lodash_1.map(lodash_1.isArray(search.value) ? search.value : [search.value], chunk => ({
+            [column.data]: chunk.match(/^\/.*\/$/)
+                ? new RegExp(`${chunk.substring(1, chunk.length - 1)}`, 'gi')
+                : new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
+        }));
+        return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+    }
+    buildColumnSearchBoolean(options, column, search) {
+        this.debug(options.logger, 'buildColumnSearchBoolean:', column.data, search);
+        if (['string', 'boolean'].includes(typeof search.value)) {
+            const value = typeof search.value === 'boolean' ? search.value : lodash_1.lowerCase(lodash_1.trim(search.value));
+            if (value === 'true' || value === true) {
+                return { [column.data]: true };
             }
-            catch (err) { }
+            else if (value === 'false' || value === false) {
+                return { [column.data]: false };
+            }
         }
+        this.warn(options.logger, `buildColumnSearchBoolean unmanaged search value '${search.value}'`);
+        return null;
+    }
+    buildGlobalColumnSearchNumber(options, column, search) {
+        this.debug(options.logger, 'buildGlobalColumnSearchNumber:', column.data, search);
         const s = [];
-        (search.chunks || [search.value]).forEach(chunk => {
-            const columnSearch = {};
-            columnSearch[column.data] = new RegExp(`${escapeStringRegexp(chunk)}`, 'gi');
-            s.push(columnSearch);
+        lodash_1.each(search.chunks, chunk => {
+            if (!isNaN(chunk)) {
+                s.push({ [column.data]: new Number(chunk).valueOf() });
+            }
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
-    buildColumnSearchBoolean(options, query, column, field, search, global) {
-        this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-        if (global) {
-            return null;
-        }
-        const value = lodash_1.lowerCase(lodash_1.trim(search.value));
-        let columnSearch = null;
-        if (value === 'true') {
-            columnSearch = {};
-            columnSearch[column.data] = true;
-        }
-        else if (value === 'false') {
-            columnSearch = {};
-            columnSearch[column.data] = false;
-        }
-        return columnSearch;
-    }
-    buildColumnSearchNumber(options, query, column, field, search, global) {
+    buildColumnSearchNumber(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
-        if (global) {
-            const s = [];
-            (search.chunks || [search.value]).forEach(chunk => {
-                if (isNaN(chunk)) {
-                    return;
-                }
-                const columnSearch = {};
-                columnSearch[column.data] = (new Number(chunk)).valueOf();
-                s.push(columnSearch);
-            });
-            return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
-        }
         if (/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/.test(search.value)) {
             const op = RegExp.$1;
             const from = new Number(RegExp.$2);
@@ -393,29 +457,16 @@ class DataTableModule {
                 case '<=>':
                     columnSearch[column.data] = { $gte: from.valueOf(), $lte: to.valueOf() };
                     break;
-                default: columnSearch[column.data] = from.valueOf();
+                default:
+                    columnSearch[column.data] = from.valueOf();
             }
             return columnSearch;
         }
-        else {
-            this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${search.value}`);
-        }
+        this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${search.value}'`);
         return null;
     }
-    buildColumnSearchDate(options, query, column, field, search, global) {
+    buildColumnSearchDate(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
-        if (global) {
-            const s = [];
-            (search.chunks || [search.value]).forEach(chunk => {
-                if (isNaN(chunk)) {
-                    return;
-                }
-                const columnSearch = {};
-                columnSearch[column.data] = (new Number(chunk)).valueOf();
-                s.push(columnSearch);
-            });
-            return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
-        }
         if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
             const op = RegExp.$1;
             const $2 = RegExp.$2;
@@ -448,28 +499,31 @@ class DataTableModule {
                 case '<=>':
                     columnSearch[column.data] = { $gte: from, $lte: to };
                     break;
-                default: columnSearch[column.data] = from;
+                default:
+                    columnSearch[column.data] = from;
             }
             return columnSearch;
         }
-        else {
-            this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}`);
-        }
+        this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
         return null;
     }
-    buildColumnSearchObjectId(options, query, column, field, search, global) {
+    buildColumnSearchObjectId(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
-        if (global || !mongoose_1.Types.ObjectId.isValid(search.value)) {
-            return null;
+        if (mongoose_1.Types.ObjectId.isValid(search.value)) {
+            const columnSearch = {};
+            columnSearch[column.data] = new mongoose_1.Types.ObjectId(search.value);
+            return columnSearch;
         }
-        const columnSearch = {};
-        columnSearch[column.data] = new mongoose_1.Types.ObjectId(search.value);
-        return columnSearch;
+        this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
+        return null;
     }
     pagination(query) {
         const start = query.start ? parseInt(query.start, 10) : 0;
         const length = query.length ? parseInt(query.length, 10) : undefined;
-        return { start: isNaN(start) ? 0 : start, length: isNaN(length) ? undefined : length };
+        return {
+            start: isNaN(start) ? 0 : start,
+            length: isNaN(length) ? undefined : length,
+        };
     }
     isTrue(data) {
         return data === true || data === 'true';
@@ -499,7 +553,7 @@ class DataTableModule {
                 aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
             }
             aggregate.push({ $count: 'filtered' });
-            return this.model.aggregate(aggregate).then(data => data.length === 1 ? data[0].filtered : 0);
+            return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].filtered : 0));
         });
     }
     data(options, aggregateOptions) {
@@ -523,7 +577,9 @@ class DataTableModule {
             }
             if (aggregateOptions.pagination) {
                 if (aggregateOptions.pagination.start) {
-                    aggregate.push({ $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length });
+                    aggregate.push({
+                        $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length,
+                    });
                 }
                 if (aggregateOptions.pagination.length) {
                     aggregate.push({ $limit: aggregateOptions.pagination.length });
@@ -542,18 +598,36 @@ class DataTableModule {
             id = id.concat({ $toString: `$_id.${gb}` });
             const groupBy = {};
             if (i < aggregateOptions.groupBy.length - 1) {
-                groupBy[`gb${i}`] = { id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` };
+                groupBy[`gb${i}`] = {
+                    id: { $concat: id },
+                    count: '$groupByCount',
+                    field: gb,
+                    value: `$_id.${gb}`,
+                };
             }
             else {
                 groupBy.groupBy = [];
                 while (i--) {
                     groupBy.groupBy.push(`$data.gb${i}`);
                 }
-                groupBy.groupBy.push({ id: { $concat: id }, count: "$groupByCount", field: gb, value: `$_id.${gb}` });
+                groupBy.groupBy.push({
+                    id: { $concat: id },
+                    count: '$groupByCount',
+                    field: gb,
+                    value: `$_id.${gb}`,
+                });
             }
-            aggregate.push({ $group: { _id: lodash_1.clone(_id), groupByCount: { $sum: 1 }, data: { $push: "$$ROOT" } } });
+            aggregate.push({
+                $group: {
+                    _id: lodash_1.clone(_id),
+                    groupByCount: { $sum: 1 },
+                    data: { $push: '$$ROOT' },
+                },
+            });
             aggregate.push({ $unwind: '$data' });
-            aggregate.push({ $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } } });
+            aggregate.push({
+                $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } },
+            });
         });
         return aggregate;
     }
@@ -572,7 +646,7 @@ class DataTableModule {
 }
 DataTableModule.CONFIG = {
     logger: null,
-    handlers: {}
+    handlers: {},
 };
 exports.default = DataTableModule;
 //# sourceMappingURL=datatable.js.map
