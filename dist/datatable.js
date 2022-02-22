@@ -131,7 +131,7 @@ class DataTableModule {
     }
     fetchFieldArrayRef(data) {
         data.populated = true;
-        data.model = data.model.base.model(data.field.options.ref);
+        data.model = data.model.db.model(data.field.options.ref);
         data.schema = data.model.schema;
         if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
             const refProperty = data.base.substr(data.inArray.length + 1);

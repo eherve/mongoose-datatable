@@ -16,8 +16,8 @@
   ],
   "scripts": {
     "build": "rm dist/* ; tsc -d",
-    "test": "docker run -p 4242:27017 --name datatable --rm -d mongo && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
-    "docker": "docker run -p 4242:27017 --name datatable --rm -d mongo && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js",
+    "test": "docker run -p 4242:27017 --name datatable --rm -d mongo:5.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
+    "docker": "docker run -p 4242:27017 --name datatable --rm -d mongo:5.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js",
     "prepare": "npm run build"
   },
   "engines": {
@@ -40,8 +40,8 @@
     "chai-as-promised": "^7.1.1",
     "lodash": "^4.17.20",
     "mocha": "^8.2.1",
-    "mongoose": "^5.11.8",
-    "typescript": "^3.9.7"
+    "mongoose": "^6.2.3",
+    "typescript": "^4.3.5"
   },
   "dependencies": {
     "escape-string-regexp": "^4.0.0",
