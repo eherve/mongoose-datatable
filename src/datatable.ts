@@ -229,7 +229,7 @@ class DataTableModule {
     base: string;
   }) {
     data.populated = true;
-    data.model = data.model.base.model(data.field.options.ref);
+    data.model = data.model.db.model(data.field.options.ref);
     data.schema = data.model.schema;
     if (!data.populate.find((l: any) => l.$lookup && l.$lookup.localField === data.base)) {
       data.populate.push({
