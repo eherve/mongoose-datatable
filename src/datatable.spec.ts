@@ -23,6 +23,7 @@ const schema = new mongoose.Schema({
   position: Number,
   start_date: Date,
   sub_schema: { type: mongoose.Types.ObjectId, ref: 'SubTest' },
+  sub_schema_unknown: { type: mongoose.Types.ObjectId, ref: 'SubSchemaUnknown' },
   embeded_schema: { type: embededSchema },
   array: [
     {
@@ -37,7 +38,7 @@ const model = mongoose.model('Test', schema);
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-const logger = { debug: () => {}, warn: console.log.bind(console) };
+const logger = { debug: () => {}, warn: () => {} };
 
 let records: any[];
 
@@ -247,6 +248,23 @@ describe('Datatable Module', () => {
         expect(data.draw).to.be.equals('2');
         expect(data.data).to.have.lengthOf(records.length);
       });
+    });
+
+    it('should list all data event with unknown fields or ref schema', async () => {
+      return model
+        .dataTable({
+          draw: '2',
+          start: '0',
+          length: '10',
+          order: [],
+          search: { value: null, regex: false },
+          columns: [{ data: '_id' }, { data: 'unknownField' }, { data: 'sub_schema_unknown._id' }],
+        })
+        .then((data: any) => {
+          expect(data).to.not.be.null;
+          expect(data.draw).to.be.equals('2');
+          expect(data.data).to.have.lengthOf(records.length);
+        });
     });
 
     it('should find entry with field containing "Clement"', async () => {

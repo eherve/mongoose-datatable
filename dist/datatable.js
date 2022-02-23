@@ -86,12 +86,10 @@ class DataTableModule {
         }
         query.columns.forEach(column => {
             const finfo = this.fetchField(options, query, column, aggregate.populate);
-            if (!finfo) {
+            if (!finfo)
                 return;
-            }
-            if (!this.isSelectable(finfo.field)) {
+            if (!this.isSelectable(finfo.field))
                 return;
-            }
             if (this.isTrue(column.searchable)) {
                 if (column.search && column.search.value !== undefined && column.search.value !== '') {
                     column.search.chunks = this.getChunkSearch(column.search.value);
@@ -111,9 +109,18 @@ class DataTableModule {
         aggregate.search = this.addSearch(csearch);
         aggregate.afterPopulateSearch = this.addSearch(psearch, search, options.conditions);
     }
+    getModel(base, modelName) {
+        try {
+            return base.db.model(modelName);
+        }
+        catch (err) { }
+        return null;
+    }
     fetchFieldRef(data) {
         data.populated = true;
-        data.model = data.model.base.model(data.field.options.ref);
+        data.model = this.getModel(data.model, data.field.options.ref);
+        if (!data.model)
+            return;
         data.schema = data.model.schema;
         if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
             data.populate.push({
@@ -131,7 +138,9 @@ class DataTableModule {
     }
     fetchFieldArrayRef(data) {
         data.populated = true;
-        data.model = data.model.db.model(data.field.options.ref);
+        data.model = this.getModel(data.model, data.field.options.ref);
+        if (!data.model)
+            return;
         data.schema = data.model.schema;
         if (!data.populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
             const refProperty = data.base.substr(data.inArray.length + 1);
@@ -204,20 +213,32 @@ class DataTableModule {
             // ref field
             if (data.field.options && data.field.options.ref && !data.inArray) {
                 this.fetchFieldRef(data);
+                if (!data.model) {
+                    this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
+                    return;
+                }
                 continue;
             }
             // ref field in array
             if (data.field.options && data.field.options.ref && !!data.inArray) {
                 this.fetchFieldArrayRef(data);
+                if (!data.model) {
+                    this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
+                    return;
+                }
                 continue;
             }
-            // ref array field
+            // ref array field ref
             if (data.field.instance === 'Array' &&
                 data.field.caster &&
                 data.field.caster.options &&
                 data.field.caster.options.ref) {
                 data.populated = true;
-                data.model = data.model.base.model(data.field.caster.options.ref);
+                data.model = this.getModel(data.model, data.field.caster.options.ref);
+                if (!data.model) {
+                    this.warn(options.logger, `field path ${column.data} refered model ${data.field.caster.options.ref} not found !`);
+                    return;
+                }
                 data.schema = data.model.schema;
                 if (!populate.find((l) => l.$lookup && l.$lookup.localField === data.base)) {
                     populate.push({

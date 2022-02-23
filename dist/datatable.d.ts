@@ -5,9 +5,9 @@ interface ILogger {
 }
 export interface IColumn {
     data: string;
-    name: string;
-    searchable: boolean;
-    orderable: boolean;
+    name?: string;
+    searchable?: boolean;
+    orderable?: boolean;
     search?: ISearch;
 }
 interface IOrder {
@@ -63,6 +63,7 @@ declare class DataTableModule {
     private dataTable;
     private buildSort;
     private updateAggregateOptions;
+    private getModel;
     private fetchFieldRef;
     private fetchFieldArrayRef;
     private fetchField;
