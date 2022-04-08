@@ -1,5 +1,5 @@
-import chai = require('chai');
-import chaiAsPromised = require('chai-as-promised');
+import * as chai from 'chai';
+import * as chaiAsPromised from 'chai-as-promised';
 import Datatable, { IQuery } from './datatable';
 import { clone } from 'lodash';
 import { inspect } from 'util';
@@ -153,7 +153,7 @@ const posQuery: IQuery = {
   search: { value: null, regex: false },
 };
 
-const dateQuery: IQuery = {
+const dateStringQuery: IQuery = {
   draw: '2',
   columns: [
     { data: 'first_name', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
@@ -169,7 +169,29 @@ const dateQuery: IQuery = {
     },
     { data: 'sub_schema.code', name: null, searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{ column: 4, dir: 'asc' }],
+  start: '0',
+  length: '10',
+  search: { value: null, regex: false },
+};
+
+const dateQuery: IQuery = {
+  draw: '2',
+  columns: [
+    { data: 'first_name', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
+    { data: 'last_name', name: null, searchable: false, orderable: true, search: { value: null, regex: false } },
+    { data: 'activated', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
+    { data: 'position', name: null, searchable: true, orderable: true, search: { value: null, regex: false } },
+    {
+      data: 'start_date',
+      name: null,
+      searchable: true,
+      orderable: false,
+      search: { value: { from: new Date('2019.01.02'), to: new Date('2019.01.04') } },
+    },
+    { data: 'sub_schema.code', name: null, searchable: true, orderable: false, search: { value: null, regex: false } },
+  ],
+  order: [{ column: 4, dir: 'asc' }],
   start: '0',
   length: '10',
   search: { value: null, regex: false },
@@ -327,8 +349,8 @@ describe('Datatable Module', () => {
       });
     });
 
-    it('should find entries with start_date between 2019.01.02 and 2019.01.04', async () => {
-      return model.dataTable(dateQuery).then((data: any) => {
+    it('should find entries with start_date string between 2019.01.02 and 2019.01.04', async () => {
+      return model.dataTable(dateStringQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
         const start = new Date('01-02-2019').getTime();
@@ -339,6 +361,20 @@ describe('Datatable Module', () => {
         expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.02').toDateString());
         expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.03').toDateString());
         expect((data.data[2].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.04').toDateString());
+      });
+    });
+
+    it('should find entries with start_date object between 2019.01.02 and 2019.01.04', async () => {
+      return model.dataTable(dateQuery).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        const start = new Date('01-02-2019').getTime();
+        const end = new Date('01-04-2019').getTime();
+        expect(data.data).to.have.lengthOf(
+          records.filter((d: any) => d.start_date.getTime() >= start && d.start_date.getTime() < end).length
+        );
+        expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.02').toDateString());
+        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.03').toDateString());
       });
     });
 

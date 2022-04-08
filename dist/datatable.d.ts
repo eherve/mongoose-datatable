@@ -16,7 +16,7 @@ interface IOrder {
 }
 export interface ISearch {
     value: any;
-    regex: boolean;
+    regex?: boolean;
     chunks?: string[];
 }
 export interface IQuery {

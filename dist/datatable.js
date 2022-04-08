@@ -487,46 +487,57 @@ class DataTableModule {
         return null;
     }
     buildColumnSearchDate(options, column, search) {
+        var _a, _b, _c, _d;
         this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
-        if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
-            const op = RegExp.$1;
+        let op, from, to;
+        if (typeof search.value === 'string' &&
+            /^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
+            op = RegExp.$1;
             const $2 = RegExp.$2;
-            const from = isNaN($2) ? new Date($2) : new Date(parseInt($2));
+            from = isNaN($2) ? new Date($2) : new Date(parseInt($2));
             if (!(from instanceof Date) || isNaN(from.valueOf())) {
                 return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
             }
             const $3 = RegExp.$3;
-            const to = isNaN($3) ? new Date($3) : new Date(parseInt($3));
+            to = isNaN($3) ? new Date($3) : new Date(parseInt($3));
             if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
                 return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
             }
-            const columnSearch = {};
-            switch (op) {
-                case '>':
-                    columnSearch[column.data] = { $gt: from };
-                    break;
-                case '>=':
-                    columnSearch[column.data] = { $gte: from };
-                    break;
-                case '<':
-                    columnSearch[column.data] = { $lt: from };
-                    break;
-                case '<=':
-                    columnSearch[column.data] = { $lte: from };
-                    break;
-                case '<>':
-                    columnSearch[column.data] = { $gt: from, $lt: to };
-                    break;
-                case '<=>':
-                    columnSearch[column.data] = { $gte: from, $lte: to };
-                    break;
-                default:
-                    columnSearch[column.data] = from;
-            }
-            return columnSearch;
         }
-        this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
-        return null;
+        else if (lodash_1.isDate((_a = search.value) === null || _a === void 0 ? void 0 : _a.from) || lodash_1.isDate((_b = search.value) === null || _b === void 0 ? void 0 : _b.to)) {
+            if (lodash_1.isDate((_c = search.value) === null || _c === void 0 ? void 0 : _c.from)) {
+                from = search.value.from;
+                op = '=';
+            }
+            if (lodash_1.isDate((_d = search.value) === null || _d === void 0 ? void 0 : _d.to)) {
+                to = search.value.to;
+                op = '><=';
+            }
+        }
+        else {
+            this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
+            return null;
+        }
+        switch (op) {
+            case '>':
+                return { [column.data]: { $gt: from } };
+            case '>=':
+                return { [column.data]: { $gte: from } };
+            case '<':
+                return { [column.data]: { $lt: from } };
+            case '<=':
+                return { [column.data]: { $lte: from } };
+            case '<>':
+                return { [column.data]: { $gt: from, $lt: to } };
+            case '<=>':
+                return { [column.data]: { $gte: from, $lte: to } };
+            case '><=':
+                return { [column.data]: { $gte: from, $lt: to } };
+            case '>=<':
+                return { [column.data]: { $gt: from, $lte: to } };
+            default:
+                return { [column.data]: from };
+        }
     }
     buildColumnSearchObjectId(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);

@@ -1,5 +1,5 @@
 import * as util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each } from 'lodash';
+import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isDate } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
 import { unflatten } from 'flat';
@@ -28,7 +28,7 @@ interface IOrder {
 
 export interface ISearch {
   value: any;
-  regex: boolean;
+  regex?: boolean;
   chunks?: string[];
 }
 
@@ -649,45 +649,55 @@ class DataTableModule {
 
   private buildColumnSearchDate(options: IOptions, column: IColumn, search: ISearch): any {
     this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
-    if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)) {
-      const op = RegExp.$1;
+    let op: string, from: Date, to: Date;
+    if (
+      typeof search.value === 'string' &&
+      /^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)
+    ) {
+      op = RegExp.$1;
       const $2 = RegExp.$2;
-      const from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
+      from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
       if (!(from instanceof Date) || isNaN(from.valueOf())) {
         return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
       }
       const $3 = RegExp.$3;
-      const to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
+      to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
       if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
         return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
       }
-      const columnSearch: any = {};
-      switch (op) {
-        case '>':
-          columnSearch[column.data] = { $gt: from };
-          break;
-        case '>=':
-          columnSearch[column.data] = { $gte: from };
-          break;
-        case '<':
-          columnSearch[column.data] = { $lt: from };
-          break;
-        case '<=':
-          columnSearch[column.data] = { $lte: from };
-          break;
-        case '<>':
-          columnSearch[column.data] = { $gt: from, $lt: to };
-          break;
-        case '<=>':
-          columnSearch[column.data] = { $gte: from, $lte: to };
-          break;
-        default:
-          columnSearch[column.data] = from;
+    } else if (isDate(search.value?.from) || isDate(search.value?.to)) {
+      if (isDate(search.value?.from)) {
+        from = search.value.from;
+        op = '=';
       }
-      return columnSearch;
+      if (isDate(search.value?.to)) {
+        to = search.value.to;
+        op = '><=';
+      }
+    } else {
+      this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
+      return null;
     }
-    this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
-    return null;
+    switch (op) {
+      case '>':
+        return { [column.data]: { $gt: from } };
+      case '>=':
+        return { [column.data]: { $gte: from } };
+      case '<':
+        return { [column.data]: { $lt: from } };
+      case '<=':
+        return { [column.data]: { $lte: from } };
+      case '<>':
+        return { [column.data]: { $gt: from, $lt: to } };
+      case '<=>':
+        return { [column.data]: { $gte: from, $lte: to } };
+      case '><=':
+        return { [column.data]: { $gte: from, $lt: to } };
+      case '>=<':
+        return { [column.data]: { $gt: from, $lte: to } };
+      default:
+        return { [column.data]: from };
+    }
   }
 
   private buildColumnSearchObjectId(options: IOptions, column: IColumn, search: ISearch): any {
