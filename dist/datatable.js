@@ -504,13 +504,15 @@ class DataTableModule {
                 return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
             }
         }
-        else if (lodash_1.isDate((_a = search.value) === null || _a === void 0 ? void 0 : _a.from) || lodash_1.isDate((_b = search.value) === null || _b === void 0 ? void 0 : _b.to)) {
-            if (lodash_1.isDate((_c = search.value) === null || _c === void 0 ? void 0 : _c.from)) {
-                from = search.value.from;
+        else if (((_a = search.value) === null || _a === void 0 ? void 0 : _a.from) || ((_b = search.value) === null || _b === void 0 ? void 0 : _b.to)) {
+            let fromDate = ((_c = search.value) === null || _c === void 0 ? void 0 : _c.from) ? new Date(search.value.from) : null;
+            if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) {
+                from = fromDate;
                 op = '=';
             }
-            if (lodash_1.isDate((_d = search.value) === null || _d === void 0 ? void 0 : _d.to)) {
-                to = search.value.to;
+            let toDate = ((_d = search.value) === null || _d === void 0 ? void 0 : _d.to) ? new Date(search.value.to) : null;
+            if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) {
+                to = toDate;
                 op = '><=';
             }
         }

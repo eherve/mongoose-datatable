@@ -665,13 +665,15 @@ class DataTableModule {
       if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
         return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
       }
-    } else if (isDate(search.value?.from) || isDate(search.value?.to)) {
-      if (isDate(search.value?.from)) {
-        from = search.value.from;
+    } else if (search.value?.from || search.value?.to) {
+      let fromDate = search.value?.from ? new Date(search.value.from) : null;
+      if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) {
+        from = fromDate;
         op = '=';
       }
-      if (isDate(search.value?.to)) {
-        to = search.value.to;
+      let toDate = search.value?.to ? new Date(search.value.to) : null;
+      if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) {
+        to = toDate;
         op = '><=';
       }
     } else {

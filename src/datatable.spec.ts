@@ -187,7 +187,7 @@ const dateQuery: IQuery = {
       name: null,
       searchable: true,
       orderable: false,
-      search: { value: { from: new Date('2019.01.02'), to: new Date('2019.01.04') } },
+      search: { value: { from: '2019.01.02', to: new Date('2019.01.04') } },
     },
     { data: 'sub_schema.code', name: null, searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
