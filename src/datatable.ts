@@ -666,15 +666,14 @@ class DataTableModule {
         return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
       }
     } else if (search.value?.from || search.value?.to) {
+      op = search.value.op || '>=<';
       let fromDate = search.value?.from ? new Date(search.value.from) : null;
       if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) {
         from = fromDate;
-        op = '=';
       }
       let toDate = search.value?.to ? new Date(search.value.to) : null;
       if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) {
         to = toDate;
-        op = '><=';
       }
     } else {
       this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
@@ -694,9 +693,9 @@ class DataTableModule {
       case '<=>':
         return { [column.data]: { $gte: from, $lte: to } };
       case '><=':
-        return { [column.data]: { $gte: from, $lt: to } };
-      case '>=<':
         return { [column.data]: { $gt: from, $lte: to } };
+      case '>=<':
+        return { [column.data]: { $gte: from, $lt: to } };
       default:
         return { [column.data]: from };
     }

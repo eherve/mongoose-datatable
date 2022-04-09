@@ -1,7 +1,7 @@
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import Datatable, { IQuery } from './datatable';
-import { clone } from 'lodash';
+import { clone, map } from 'lodash';
 import { inspect } from 'util';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
@@ -187,7 +187,7 @@ const dateQuery: IQuery = {
       name: null,
       searchable: true,
       orderable: false,
-      search: { value: { from: '2019.01.02', to: new Date('2019.01.04') } },
+      search: { value: { from: '2019.01.02', to: new Date('2019.01.04'), op: '>=<' } },
     },
     { data: 'sub_schema.code', name: null, searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
