@@ -33,8 +33,10 @@ class DataTableModule {
     }
     static init(schema, config) {
         const dataTableModule = new DataTableModule(schema);
+        if (config)
+            schema.statics.dataTableConfig = config;
         schema.statics.dataTable = function (query, options) {
-            options = lodash_1.merge({}, config || {}, options || {});
+            options = lodash_1.merge({}, schema.statics.dataTableConfig || {}, options || {});
             dataTableModule.model = this;
             return dataTableModule.dataTable(query, options);
         };
