@@ -1,20 +1,10 @@
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const util = require("util");
-const lodash_1 = require("lodash");
-const escapeStringRegexp = require("escape-string-regexp");
-const mongoose_1 = require("mongoose");
-const flat_1 = require("flat");
-class DataTableModule {
+/** @format */
+import util from 'util';
+import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil } from 'lodash-es';
+import escapeStringRegexp from 'escape-string-regexp';
+import { Types } from 'mongoose';
+import flat from 'flat';
+export class DataTableModule {
     constructor(schema) {
         this.schema = schema;
         this._config = DataTableModule.CONFIG;
@@ -27,7 +17,7 @@ class DataTableModule {
     }
     static configure(config) {
         if (config) {
-            DataTableModule.CONFIG = lodash_1.assign(DataTableModule.CONFIG, config);
+            DataTableModule.CONFIG = assign(DataTableModule.CONFIG, config);
         }
         return DataTableModule.CONFIG;
     }
@@ -36,7 +26,7 @@ class DataTableModule {
         if (config)
             schema.statics.dataTableConfig = config;
         schema.statics.dataTable = function (query, options) {
-            options = lodash_1.merge({}, schema.statics.dataTableConfig || {}, options || {});
+            options = merge({}, schema.statics.dataTableConfig || {}, options || {});
             dataTableModule.model = this;
             return dataTableModule.dataTable(query, options);
         };
@@ -289,13 +279,13 @@ class DataTableModule {
         }
     }
     addProjection(options, aggregate, projection) {
-        if (options.select || projection !== {}) {
+        if (options.select || Object.keys(projection).length) {
             const select = typeof options.select === 'string'
                 ? options.select.split(' ').reduce((p, c) => ((p[c] = 1), p), {})
                 : Array.isArray(options.select)
                     ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
                     : options.select;
-            aggregate.projection = flat_1.unflatten(lodash_1.merge(select, projection || {}), {
+            aggregate.projection = flat.unflatten(merge(select, projection || {}), {
                 overwrite: true,
             });
         }
@@ -334,8 +324,8 @@ class DataTableModule {
     }
     getChunkSearch(search) {
         let chunks = [];
-        if (lodash_1.isArray(search)) {
-            lodash_1.each(search, s => (chunks = lodash_1.concat(chunks, this.getChunkSearch(s))));
+        if (isArray(search)) {
+            each(search, s => (chunks = concat(chunks, this.getChunkSearch(s))));
             return chunks;
         }
         search = search !== null && search !== undefined ? search.toString() : '';
@@ -347,7 +337,7 @@ class DataTableModule {
             return '';
         })
             .split(/[ \t]+/)
-            .filter(s => lodash_1.trim(s) !== '');
+            .filter(s => trim(s) !== '');
     }
     buildColumnSearch(options, query, column, field, search, global) {
         let instance = field.instance;
@@ -397,7 +387,7 @@ class DataTableModule {
     tryDeductMixedFromValue(value) {
         switch (typeof value) {
             case 'string':
-                if (mongoose_1.Types.ObjectId.isValid(value)) {
+                if (Types.ObjectId.isValid(value)) {
                     return 'ObjectID';
                 }
                 if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.]+)(?:,([0-9.]+))?$/.test(value)) {
@@ -416,14 +406,14 @@ class DataTableModule {
     }
     buildGlobalColumnSearchString(options, column, search) {
         this.debug(options.logger, 'buildGlobalColumnSearchString:', column.data, search);
-        const s = lodash_1.map(search.chunks, chunk => ({
+        const s = map(search.chunks, chunk => ({
             [column.data]: new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
         }));
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
     buildColumnSearchString(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-        const s = lodash_1.map(lodash_1.isArray(search.value) ? search.value : [search.value], chunk => ({
+        const s = map(isArray(search.value) ? search.value : [search.value], chunk => ({
             [column.data]: chunk.match(/^\/.*\/$/)
                 ? new RegExp(`${chunk.substring(1, chunk.length - 1)}`, 'gi')
                 : new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
@@ -433,7 +423,7 @@ class DataTableModule {
     buildColumnSearchBoolean(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchBoolean:', column.data, search);
         if (['string', 'boolean'].includes(typeof search.value)) {
-            const value = typeof search.value === 'boolean' ? search.value : lodash_1.lowerCase(lodash_1.trim(search.value));
+            const value = typeof search.value === 'boolean' ? search.value : lowerCase(trim(search.value));
             if (value === 'true' || value === true) {
                 return { [column.data]: true };
             }
@@ -447,7 +437,7 @@ class DataTableModule {
     buildGlobalColumnSearchNumber(options, column, search) {
         this.debug(options.logger, 'buildGlobalColumnSearchNumber:', column.data, search);
         const s = [];
-        lodash_1.each(search.chunks, chunk => {
+        each(search.chunks, chunk => {
             if (!isNaN(chunk)) {
                 s.push({ [column.data]: new Number(chunk).valueOf() });
             }
@@ -489,7 +479,6 @@ class DataTableModule {
         return null;
     }
     buildColumnSearchDate(options, column, search) {
-        var _a, _b, _c, _d;
         this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
         let op, from, to;
         if (typeof search.value === 'string' &&
@@ -506,13 +495,13 @@ class DataTableModule {
                 return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
             }
         }
-        else if (((_a = search.value) === null || _a === void 0 ? void 0 : _a.from) || ((_b = search.value) === null || _b === void 0 ? void 0 : _b.to)) {
+        else if (search.value?.from || search.value?.to) {
             op = search.value.op || '>=<';
-            let fromDate = ((_c = search.value) === null || _c === void 0 ? void 0 : _c.from) ? new Date(search.value.from) : null;
+            let fromDate = search.value?.from ? new Date(search.value.from) : null;
             if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) {
                 from = fromDate;
             }
-            let toDate = ((_d = search.value) === null || _d === void 0 ? void 0 : _d.to) ? new Date(search.value.to) : null;
+            let toDate = search.value?.to ? new Date(search.value.to) : null;
             if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) {
                 to = toDate;
             }
@@ -544,21 +533,30 @@ class DataTableModule {
     }
     buildColumnSearchObjectId(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
-        if (mongoose_1.Types.ObjectId.isValid(search.value)) {
+        if (Types.ObjectId.isValid(search.value)) {
             const columnSearch = {};
-            columnSearch[column.data] = new mongoose_1.Types.ObjectId(search.value);
+            columnSearch[column.data] = new Types.ObjectId(search.value);
             return columnSearch;
         }
         this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
         return null;
     }
     pagination(query) {
-        const start = query.start ? parseInt(query.start, 10) : 0;
-        const length = query.length ? parseInt(query.length, 10) : undefined;
+        const start = this.parseNumber(query.start, 0);
+        const length = this.parseNumber(query.length, undefined);
         return {
             start: isNaN(start) ? 0 : start,
             length: isNaN(length) ? undefined : length,
         };
+    }
+    parseNumber(data, def) {
+        if (isNil(data))
+            return def;
+        if (typeof data === 'string')
+            return parseInt(data, 10);
+        if (typeof data === 'number')
+            return data;
+        return def;
     }
     isTrue(data) {
         return data === true || data === 'true';
@@ -569,67 +567,61 @@ class DataTableModule {
     isSelectable(field) {
         return !field.options || (field.options.select !== false && field.options.dataTableSelect !== false);
     }
-    recordsTotal(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.model.countDocuments(options.conditions);
-        });
+    async recordsTotal(options) {
+        return this.model.countDocuments(options.conditions);
     }
-    recordsFiltered(options, aggregateOptions, recordsTotal) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!aggregateOptions.search && !aggregateOptions.afterPopulateSearch) {
-                return Promise.resolve(recordsTotal);
-            }
-            const aggregate = [];
-            if (aggregateOptions.search) {
-                aggregate.push({ $match: aggregateOptions.search });
-            }
-            aggregateOptions.populate.forEach(data => aggregate.push(data));
-            if (aggregateOptions.afterPopulateSearch) {
-                aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
-            }
-            aggregate.push({ $count: 'filtered' });
-            return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].filtered : 0));
-        });
+    async recordsFiltered(options, aggregateOptions, recordsTotal) {
+        if (!aggregateOptions.search && !aggregateOptions.afterPopulateSearch) {
+            return Promise.resolve(recordsTotal);
+        }
+        const aggregate = [];
+        if (aggregateOptions.search) {
+            aggregate.push({ $match: aggregateOptions.search });
+        }
+        aggregateOptions.populate.forEach(data => aggregate.push(data));
+        if (aggregateOptions.afterPopulateSearch) {
+            aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+        }
+        aggregate.push({ $count: 'filtered' });
+        return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].filtered : 0));
     }
-    data(options, aggregateOptions) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const aggregate = [];
-            if (aggregateOptions.search) {
-                aggregate.push({ $match: aggregateOptions.search });
+    async data(options, aggregateOptions) {
+        const aggregate = [];
+        if (aggregateOptions.search) {
+            aggregate.push({ $match: aggregateOptions.search });
+        }
+        aggregateOptions.populate.forEach(data => aggregate.push(data));
+        if (aggregateOptions.afterPopulateSearch) {
+            aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+        }
+        if (aggregateOptions.projection) {
+            aggregate.push({ $project: aggregateOptions.projection });
+        }
+        if (aggregateOptions.groupBy) {
+            this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
+        }
+        if (aggregateOptions.sort) {
+            aggregate.push({ $sort: aggregateOptions.sort });
+        }
+        if (aggregateOptions.pagination) {
+            if (aggregateOptions.pagination.start) {
+                aggregate.push({
+                    $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length,
+                });
             }
-            aggregateOptions.populate.forEach(data => aggregate.push(data));
-            if (aggregateOptions.afterPopulateSearch) {
-                aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+            if (aggregateOptions.pagination.length) {
+                aggregate.push({ $limit: aggregateOptions.pagination.length });
             }
-            if (aggregateOptions.projection) {
-                aggregate.push({ $project: aggregateOptions.projection });
-            }
-            if (aggregateOptions.groupBy) {
-                this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
-            }
-            if (aggregateOptions.sort) {
-                aggregate.push({ $sort: aggregateOptions.sort });
-            }
-            if (aggregateOptions.pagination) {
-                if (aggregateOptions.pagination.start) {
-                    aggregate.push({
-                        $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length,
-                    });
-                }
-                if (aggregateOptions.pagination.length) {
-                    aggregate.push({ $limit: aggregateOptions.pagination.length });
-                }
-            }
-            this.debug(options.logger, util.inspect(aggregate, { depth: null }));
-            return this.model.aggregate(aggregate).allowDiskUse(true);
-        });
+        }
+        this.debug(options.logger, util.inspect(aggregate, { depth: null }));
+        return this.model.aggregate(aggregate).allowDiskUse(true);
     }
     buildGroupBy(aggregateOptions) {
         const aggregate = [];
         const _id = {};
         let id = [];
         aggregateOptions.groupBy.forEach((gb, i) => {
-            lodash_1.set(_id, gb, `$${gb}`);
+            set(_id, gb, `$${gb}`);
             id = id.concat({ $toString: `$_id.${gb}` });
             const groupBy = {};
             if (i < aggregateOptions.groupBy.length - 1) {
@@ -654,7 +646,7 @@ class DataTableModule {
             }
             aggregate.push({
                 $group: {
-                    _id: lodash_1.clone(_id),
+                    _id: clone(_id),
                     groupByCount: { $sum: 1 },
                     data: { $push: '$$ROOT' },
                 },
@@ -683,5 +675,4 @@ DataTableModule.CONFIG = {
     logger: null,
     handlers: {},
 };
-exports.default = DataTableModule;
 //# sourceMappingURL=datatable.js.map

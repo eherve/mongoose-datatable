@@ -7,21 +7,15 @@
     "declaration": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "lib": ["es6", "es2016", "dom"],
-    "module": "commonjs",
+    "lib": ["es2020"],
     "moduleResolution": "node",
     "outDir": "dist",
-    "target": "es6",
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "noImplicitAny": false
+    "target": "es2020",
+    "typeRoots": ["./node_modules/@types"],
+    "noImplicitAny": false,
+    "strictPropertyInitialization": false,
+    "esModuleInterop": true
   },
-  "include": [
-    "src/**.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "src/**.spec.ts"
-  ]
+  "include": ["src/**.ts"],
+  "exclude": ["node_modules", "src/**.spec.ts"]
 }

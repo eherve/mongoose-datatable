@@ -1,8 +1,10 @@
-import * as util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isDate } from 'lodash';
-import * as escapeStringRegexp from 'escape-string-regexp';
+/** @format */
+
+import util from 'util';
+import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil } from 'lodash-es';
+import escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
-import { unflatten } from 'flat';
+import flat from 'flat';
 
 interface ILogger {
   debug: (...data: any) => void;
@@ -81,8 +83,8 @@ export interface IQuery {
   draw: string;
   columns: IColumn[];
   order?: IOrder[];
-  start: string;
-  length: string;
+  start: string | number;
+  length: string | number;
   search?: ISearch;
   groupBy?: string[];
 }
@@ -109,7 +111,7 @@ export interface IConfig {
   handlers?: { [type: string]: HandlerType };
 }
 
-class DataTableModule {
+export class DataTableModule {
   static CONFIG: IConfig = {
     logger: null,
     handlers: {},
@@ -434,14 +436,14 @@ class DataTableModule {
   }
 
   private addProjection(options: IOptions, aggregate: IAggregateOptions, projection: any) {
-    if (options.select || projection !== {}) {
+    if (options.select || Object.keys(projection).length) {
       const select =
         typeof options.select === 'string'
           ? options.select.split(' ').reduce((p: any, c: string) => ((p[c] = 1), p), {})
           : Array.isArray(options.select)
           ? options.select.reduce((p: any, c: string) => ((p[c] = 1), p), {})
           : options.select;
-      aggregate.projection = unflatten(merge(select, projection || {}), {
+      aggregate.projection = flat.unflatten(merge(select, projection || {}), {
         overwrite: true,
       });
     }
@@ -714,12 +716,19 @@ class DataTableModule {
   }
 
   private pagination(query: IQuery): IPagination {
-    const start = query.start ? parseInt(query.start, 10) : 0;
-    const length = query.length ? parseInt(query.length, 10) : undefined;
+    const start = this.parseNumber(query.start, 0);
+    const length = this.parseNumber(query.length, undefined);
     return {
       start: isNaN(start) ? 0 : start,
       length: isNaN(length) ? undefined : length,
     };
+  }
+
+  private parseNumber(data: string | number, def?: number): number {
+    if (isNil(data)) return def;
+    if (typeof data === 'string') return parseInt(data, 10);
+    if (typeof data === 'number') return data;
+    return def;
   }
 
   private isTrue(data: string | boolean): boolean {
@@ -846,5 +855,3 @@ class DataTableModule {
     }
   }
 }
-
-export default DataTableModule;

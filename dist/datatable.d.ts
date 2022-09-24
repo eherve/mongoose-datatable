@@ -1,3 +1,4 @@
+/** @format */
 import { Schema } from 'mongoose';
 interface ILogger {
     debug: (...data: any) => void;
@@ -23,8 +24,8 @@ export interface IQuery {
     draw: string;
     columns: IColumn[];
     order?: IOrder[];
-    start: string;
-    length: string;
+    start: string | number;
+    length: string | number;
     search?: ISearch;
     groupBy?: string[];
 }
@@ -50,7 +51,7 @@ export interface IConfig {
         [type: string]: HandlerType;
     };
 }
-declare class DataTableModule {
+export declare class DataTableModule {
     private schema;
     static CONFIG: IConfig;
     private _config;
@@ -82,6 +83,7 @@ declare class DataTableModule {
     private buildColumnSearchDate;
     private buildColumnSearchObjectId;
     private pagination;
+    private parseNumber;
     private isTrue;
     private isFalse;
     private isSelectable;
@@ -92,4 +94,4 @@ declare class DataTableModule {
     private debug;
     private warn;
 }
-export default DataTableModule;
+export {};
