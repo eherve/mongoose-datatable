@@ -1,7 +1,7 @@
 /** @format */
 
 import util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil } from 'lodash-es';
+import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil, head, get } from 'lodash-es';
 import escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
 import flat from 'flat';
@@ -97,6 +97,7 @@ export interface IOptions {
   conditions?: any;
   select?: any;
   disableCount?: boolean;
+  unwind?: string[];
 }
 
 export interface IData {
@@ -744,6 +745,15 @@ export class DataTableModule {
   }
 
   private async recordsTotal(options: IOptions): Promise<number> {
+    if (!!options.unwind?.length) {
+      const aggregate = [];
+      options.unwind.forEach($unwind => aggregate.push({ $unwind }));
+      aggregate.push({ $match: options.conditions });
+      // aggregate.push({ $group: { _id: null, count: { $sum: 1 } } });
+      // return get(head(await this.model.aggregate(aggregate)), 'count');
+      aggregate.push({ $count: 'count' });
+      return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
+    }
     return this.model.countDocuments(options.conditions);
   }
 
@@ -756,19 +766,17 @@ export class DataTableModule {
       return Promise.resolve(recordsTotal);
     }
     const aggregate: any[] = [];
-    if (aggregateOptions.search) {
-      aggregate.push({ $match: aggregateOptions.search });
-    }
+    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
+    if (aggregateOptions.search) aggregate.push({ $match: aggregateOptions.search });
     aggregateOptions.populate.forEach(data => aggregate.push(data));
-    if (aggregateOptions.afterPopulateSearch) {
-      aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
-    }
-    aggregate.push({ $count: 'filtered' });
-    return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].filtered : 0));
+    if (aggregateOptions.afterPopulateSearch) aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+    aggregate.push({ $count: 'count' });
+    return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
   }
 
   private async data(options: IOptions, aggregateOptions: IAggregateOptions): Promise<any[]> {
     const aggregate: any[] = [];
+    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
     if (aggregateOptions.search) {
       aggregate.push({ $match: aggregateOptions.search });
     }

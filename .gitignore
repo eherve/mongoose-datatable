@@ -22,3 +22,5 @@ npm-debug.log
 coverage
 dist/*.spec.js
 dist/*.spec.js.map
+
+.DS_Store

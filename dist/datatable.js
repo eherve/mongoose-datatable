@@ -568,6 +568,15 @@ export class DataTableModule {
         return !field.options || (field.options.select !== false && field.options.dataTableSelect !== false);
     }
     async recordsTotal(options) {
+        if (!!options.unwind?.length) {
+            const aggregate = [];
+            options.unwind.forEach($unwind => aggregate.push({ $unwind }));
+            aggregate.push({ $match: options.conditions });
+            // aggregate.push({ $group: { _id: null, count: { $sum: 1 } } });
+            // return get(head(await this.model.aggregate(aggregate)), 'count');
+            aggregate.push({ $count: 'count' });
+            return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
+        }
         return this.model.countDocuments(options.conditions);
     }
     async recordsFiltered(options, aggregateOptions, recordsTotal) {
@@ -575,18 +584,18 @@ export class DataTableModule {
             return Promise.resolve(recordsTotal);
         }
         const aggregate = [];
-        if (aggregateOptions.search) {
+        (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
+        if (aggregateOptions.search)
             aggregate.push({ $match: aggregateOptions.search });
-        }
         aggregateOptions.populate.forEach(data => aggregate.push(data));
-        if (aggregateOptions.afterPopulateSearch) {
+        if (aggregateOptions.afterPopulateSearch)
             aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
-        }
-        aggregate.push({ $count: 'filtered' });
-        return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].filtered : 0));
+        aggregate.push({ $count: 'count' });
+        return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
     }
     async data(options, aggregateOptions) {
         const aggregate = [];
+        (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
         if (aggregateOptions.search) {
             aggregate.push({ $match: aggregateOptions.search });
         }

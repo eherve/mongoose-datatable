@@ -38,6 +38,7 @@ export interface IOptions {
     conditions?: any;
     select?: any;
     disableCount?: boolean;
+    unwind?: string[];
 }
 export interface IData {
     draw: string;
