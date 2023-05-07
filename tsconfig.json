@@ -7,14 +7,12 @@
     "declaration": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "lib": ["es2020"],
+    "target": "es2020",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "dist",
-    "target": "es2020",
     "typeRoots": ["./node_modules/@types"],
     "noImplicitAny": false,
-    "strictPropertyInitialization": false,
-    "esModuleInterop": true
   },
   "include": ["src/**.ts"],
   "exclude": ["node_modules", "src/**.spec.ts"]

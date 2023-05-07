@@ -29,7 +29,7 @@ export interface IQuery {
     search?: ISearch;
     groupBy?: string[];
 }
-export declare type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
+export type HandlerType = (query: IQuery, column: IColumn, field: any, search: ISearch, global: boolean) => any;
 export interface IOptions {
     logger?: ILogger;
     handlers?: {
@@ -95,4 +95,4 @@ export declare class DataTableModule {
     private debug;
     private warn;
 }
-export {};
+export default DataTableModule;

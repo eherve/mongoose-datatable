@@ -1,10 +1,10 @@
 /** @format */
 
-import chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import { DataTableModule, IData, IOptions, IQuery } from './datatable.js';
-import { clone } from 'lodash-es';
-import mongoose from 'mongoose';
+import * as chai from 'chai';
+import * as chaiAsPromised from 'chai-as-promised';
+import DataTableModule, { IData, IOptions, IQuery } from './datatable.js';
+import { clone } from 'lodash';
+import * as mongoose from 'mongoose';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
 mongoose.plugin(DataTableModule.init);

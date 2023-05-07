@@ -1,10 +1,10 @@
 /** @format */
 
-import util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil, head, get } from 'lodash-es';
-import escapeStringRegexp from 'escape-string-regexp';
+import * as util from 'util';
+import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil, head, get } from 'lodash';
+import * as escapeStringRegexp from 'escape-string-regexp';
 import { Schema, Model, SchemaType, Types } from 'mongoose';
-import flat from 'flat';
+import * as flat from 'flat';
 
 interface ILogger {
   debug: (...data: any) => void;
@@ -863,3 +863,5 @@ export class DataTableModule {
     }
   }
 }
+
+export default DataTableModule;

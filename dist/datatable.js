@@ -1,14 +1,13 @@
+"use strict";
 /** @format */
-import util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil } from 'lodash-es';
-import escapeStringRegexp from 'escape-string-regexp';
-import { Types } from 'mongoose';
-import flat from 'flat';
-export class DataTableModule {
-    constructor(schema) {
-        this.schema = schema;
-        this._config = DataTableModule.CONFIG;
-    }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DataTableModule = void 0;
+const util = require("util");
+const lodash_1 = require("lodash");
+const escapeStringRegexp = require("escape-string-regexp");
+const mongoose_1 = require("mongoose");
+const flat = require("flat");
+class DataTableModule {
     get config() {
         return this._config;
     }
@@ -17,7 +16,7 @@ export class DataTableModule {
     }
     static configure(config) {
         if (config) {
-            DataTableModule.CONFIG = assign(DataTableModule.CONFIG, config);
+            DataTableModule.CONFIG = (0, lodash_1.assign)(DataTableModule.CONFIG, config);
         }
         return DataTableModule.CONFIG;
     }
@@ -26,10 +25,14 @@ export class DataTableModule {
         if (config)
             schema.statics.dataTableConfig = config;
         schema.statics.dataTable = function (query, options) {
-            options = merge({}, schema.statics.dataTableConfig || {}, options || {});
+            options = (0, lodash_1.merge)({}, schema.statics.dataTableConfig || {}, options || {});
             dataTableModule.model = this;
             return dataTableModule.dataTable(query, options);
         };
+    }
+    constructor(schema) {
+        this.schema = schema;
+        this._config = DataTableModule.CONFIG;
     }
     dataTable(query, options = {}) {
         this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
@@ -285,7 +288,7 @@ export class DataTableModule {
                 : Array.isArray(options.select)
                     ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
                     : options.select;
-            aggregate.projection = flat.unflatten(merge(select, projection || {}), {
+            aggregate.projection = flat.unflatten((0, lodash_1.merge)(select, projection || {}), {
                 overwrite: true,
             });
         }
@@ -324,8 +327,8 @@ export class DataTableModule {
     }
     getChunkSearch(search) {
         let chunks = [];
-        if (isArray(search)) {
-            each(search, s => (chunks = concat(chunks, this.getChunkSearch(s))));
+        if ((0, lodash_1.isArray)(search)) {
+            (0, lodash_1.each)(search, s => (chunks = (0, lodash_1.concat)(chunks, this.getChunkSearch(s))));
             return chunks;
         }
         search = search !== null && search !== undefined ? search.toString() : '';
@@ -337,7 +340,7 @@ export class DataTableModule {
             return '';
         })
             .split(/[ \t]+/)
-            .filter(s => trim(s) !== '');
+            .filter(s => (0, lodash_1.trim)(s) !== '');
     }
     buildColumnSearch(options, query, column, field, search, global) {
         let instance = field.instance;
@@ -387,7 +390,7 @@ export class DataTableModule {
     tryDeductMixedFromValue(value) {
         switch (typeof value) {
             case 'string':
-                if (Types.ObjectId.isValid(value)) {
+                if (mongoose_1.Types.ObjectId.isValid(value)) {
                     return 'ObjectID';
                 }
                 if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.]+)(?:,([0-9.]+))?$/.test(value)) {
@@ -406,14 +409,14 @@ export class DataTableModule {
     }
     buildGlobalColumnSearchString(options, column, search) {
         this.debug(options.logger, 'buildGlobalColumnSearchString:', column.data, search);
-        const s = map(search.chunks, chunk => ({
+        const s = (0, lodash_1.map)(search.chunks, chunk => ({
             [column.data]: new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
         }));
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
     buildColumnSearchString(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-        const s = map(isArray(search.value) ? search.value : [search.value], chunk => ({
+        const s = (0, lodash_1.map)((0, lodash_1.isArray)(search.value) ? search.value : [search.value], chunk => ({
             [column.data]: chunk.match(/^\/.*\/$/)
                 ? new RegExp(`${chunk.substring(1, chunk.length - 1)}`, 'gi')
                 : new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
@@ -423,7 +426,7 @@ export class DataTableModule {
     buildColumnSearchBoolean(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchBoolean:', column.data, search);
         if (['string', 'boolean'].includes(typeof search.value)) {
-            const value = typeof search.value === 'boolean' ? search.value : lowerCase(trim(search.value));
+            const value = typeof search.value === 'boolean' ? search.value : (0, lodash_1.lowerCase)((0, lodash_1.trim)(search.value));
             if (value === 'true' || value === true) {
                 return { [column.data]: true };
             }
@@ -437,7 +440,7 @@ export class DataTableModule {
     buildGlobalColumnSearchNumber(options, column, search) {
         this.debug(options.logger, 'buildGlobalColumnSearchNumber:', column.data, search);
         const s = [];
-        each(search.chunks, chunk => {
+        (0, lodash_1.each)(search.chunks, chunk => {
             if (!isNaN(chunk)) {
                 s.push({ [column.data]: new Number(chunk).valueOf() });
             }
@@ -533,9 +536,9 @@ export class DataTableModule {
     }
     buildColumnSearchObjectId(options, column, search) {
         this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
-        if (Types.ObjectId.isValid(search.value)) {
+        if (mongoose_1.Types.ObjectId.isValid(search.value)) {
             const columnSearch = {};
-            columnSearch[column.data] = new Types.ObjectId(search.value);
+            columnSearch[column.data] = new mongoose_1.Types.ObjectId(search.value);
             return columnSearch;
         }
         this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
@@ -550,7 +553,7 @@ export class DataTableModule {
         };
     }
     parseNumber(data, def) {
-        if (isNil(data))
+        if ((0, lodash_1.isNil)(data))
             return def;
         if (typeof data === 'string')
             return parseInt(data, 10);
@@ -630,7 +633,7 @@ export class DataTableModule {
         const _id = {};
         let id = [];
         aggregateOptions.groupBy.forEach((gb, i) => {
-            set(_id, gb, `$${gb}`);
+            (0, lodash_1.set)(_id, gb, `$${gb}`);
             id = id.concat({ $toString: `$_id.${gb}` });
             const groupBy = {};
             if (i < aggregateOptions.groupBy.length - 1) {
@@ -655,7 +658,7 @@ export class DataTableModule {
             }
             aggregate.push({
                 $group: {
-                    _id: clone(_id),
+                    _id: (0, lodash_1.clone)(_id),
                     groupByCount: { $sum: 1 },
                     data: { $push: '$$ROOT' },
                 },
@@ -680,8 +683,10 @@ export class DataTableModule {
         }
     }
 }
+exports.DataTableModule = DataTableModule;
 DataTableModule.CONFIG = {
     logger: null,
     handlers: {},
 };
+exports.default = DataTableModule;
 //# sourceMappingURL=datatable.js.map
