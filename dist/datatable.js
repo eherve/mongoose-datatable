@@ -391,6 +391,8 @@ class DataTableModule {
         return null;
     }
     tryDeductMixedFromValue(value) {
+        if (value instanceof Date)
+            return 'Date';
         switch (typeof value) {
             case 'string':
                 if (mongoose_1.Types.ObjectId.isValid(value)) {

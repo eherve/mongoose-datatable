@@ -555,6 +555,7 @@ export class DataTableModule {
   }
 
   private tryDeductMixedFromValue(value: any): string {
+    if (value instanceof Date) return 'Date';
     switch (typeof value) {
       case 'string':
         if (Types.ObjectId.isValid(value)) {
