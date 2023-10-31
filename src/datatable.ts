@@ -21,6 +21,7 @@ export interface IColumn {
   searchable?: boolean;
   orderable?: boolean;
   search?: ISearch;
+  type?: string;
 }
 
 interface IOrder {
@@ -523,7 +524,8 @@ export class DataTableModule {
       return (columnSearch[column.data] = null);
     }
     if (instance === 'Mixed') {
-      instance = this.tryDeductMixedFromValue(search.value);
+      if (column.type) instance = column.type;
+      else instance = this.tryDeductMixedFromValue(search.value);
     }
     switch (instance) {
       case 'String':
@@ -561,7 +563,7 @@ export class DataTableModule {
         if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.]+)(?:,([0-9.]+))?$/.test(value)) {
           return 'Number';
         }
-        if (/^(=|>|>=|<=|<|<>|<=>)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(value)) {
+        if (/^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(value)) {
           return 'Date';
         }
         return 'String';

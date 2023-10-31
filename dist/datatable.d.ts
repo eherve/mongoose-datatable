@@ -10,6 +10,7 @@ export interface IColumn {
     searchable?: boolean;
     orderable?: boolean;
     search?: ISearch;
+    type?: string;
 }
 interface IOrder {
     column: number;
