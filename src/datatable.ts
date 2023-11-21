@@ -541,6 +541,7 @@ export class DataTableModule {
         if (global) break;
         return this.buildColumnSearchDate(options, column, search);
       case 'ObjectID':
+      case 'ObjectId':
         return this.buildColumnSearchObjectId(options, column, search);
       default:
         if (options.handlers && options.handlers.default) {
