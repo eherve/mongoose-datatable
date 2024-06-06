@@ -110,7 +110,7 @@ const firstNameQuery: IQuery = {
       data: 'first_name',
       searchable: true,
       orderable: true,
-      search: {value: '/Clement|Saanvi/', regex: true},
+      search: {value: 'Clement|Saanvi', regex: true},
     },
     {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
     {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},

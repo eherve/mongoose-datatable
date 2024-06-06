@@ -577,10 +577,7 @@ export class DataTableModule {
     this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
     const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
     const s: any[] = map(values, val => {
-      if (typeof val === 'string') {
-        if (search.regex) return {[column.data]: new RegExp(`${val.substring(1, val.length - 1)}`, 'gi')};
-        return {[column.data]: new RegExp(`${escapeStringRegexp(val)}`, 'gi')};
-      }
+      if (typeof val === 'string' && search.regex) return {[column.data]: new RegExp(`${val}`, 'gi')};
       return {[column.data]: val};
     });
     return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
