@@ -2,9 +2,9 @@
 
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
-import DataTableModule, { IData, IOptions, IQuery } from './datatable.js';
-import { clone } from 'lodash';
+import {clone} from 'lodash';
 import * as mongoose from 'mongoose';
+import DataTableModule, {IData, IOptions, IQuery} from './datatable.js';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
 mongoose.plugin(DataTableModule.init);
@@ -15,7 +15,7 @@ const subSchema = new mongoose.Schema({
 const subModel = mongoose.model('SubTest', subSchema);
 const embededSchema = new mongoose.Schema({
   code: String,
-  sub_schema: { type: mongoose.Types.ObjectId, ref: 'SubTest' },
+  sub_schema: {type: mongoose.Types.ObjectId, ref: 'SubTest'},
 });
 const schema = new mongoose.Schema({
   first_name: String,
@@ -23,16 +23,16 @@ const schema = new mongoose.Schema({
   activated: Boolean,
   position: Number,
   start_date: Date,
-  sub_schema: { type: mongoose.Types.ObjectId, ref: 'SubTest' },
-  sub_schema_unknown: { type: mongoose.Types.ObjectId, ref: 'SubSchemaUnknown' },
-  embeded_schema: { type: embededSchema },
+  sub_schema: {type: mongoose.Types.ObjectId, ref: 'SubTest'},
+  sub_schema_unknown: {type: mongoose.Types.ObjectId, ref: 'SubSchemaUnknown'},
+  embeded_schema: {type: embededSchema},
   array: [
     {
       code: String,
-      embeded_schema: { type: mongoose.Types.ObjectId, ref: 'SubTest' },
+      embeded_schema: {type: mongoose.Types.ObjectId, ref: 'SubTest'},
     },
   ],
-  embeded_schema_array: [{ type: mongoose.Types.ObjectId, ref: 'SubTest' }],
+  embeded_schema_array: [{type: mongoose.Types.ObjectId, ref: 'SubTest'}],
 });
 
 interface IModel extends mongoose.Model<any> {
@@ -43,43 +43,64 @@ const model: IModel = mongoose.model('Test', schema) as any;
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-const logger = { debug: () => {}, warn: () => {} };
+const logger = {debug: () => {}, warn: () => {}};
 
 let records: any[];
 
 const query: IQuery = {
   draw: '2',
   columns: [
-    { data: '_id', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'embeded_schema', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'array', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: '_id', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'embeded_schema', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'array', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 const sQuery: IQuery = {
   draw: '2',
   columns: [
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: 'Clement', regex: false },
+  search: {value: 'Clement', regex: false},
+};
+
+const firstNameClementQuery: IQuery = {
+  draw: '2',
+  columns: [
+    {
+      data: 'first_name',
+      searchable: true,
+      orderable: true,
+      search: {value: 'Clement'},
+    },
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
+  ],
+  order: [{column: 3, dir: 'asc'}],
+  start: '0',
+  length: '10',
+  search: {value: null, regex: false},
 };
 
 const firstNameQuery: IQuery = {
@@ -87,21 +108,41 @@ const firstNameQuery: IQuery = {
   columns: [
     {
       data: 'first_name',
-
       searchable: true,
       orderable: true,
-      search: { value: '/Clement|Saanvi/', regex: false },
+      search: {value: '/Clement|Saanvi/', regex: true},
     },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
+};
+
+const firstNameFilterQuery: IQuery = {
+  draw: '2',
+  columns: [
+    {
+      data: 'first_name',
+      searchable: true,
+      orderable: true,
+      search: {value: {$in: ['Clement', 'Saanvi']}, regex: false},
+    },
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
+  ],
+  order: [{column: 3, dir: 'asc'}],
+  start: '0',
+  length: '10',
+  search: {value: null, regex: false},
 };
 
 const firstNameArrayQuery: IQuery = {
@@ -109,97 +150,112 @@ const firstNameArrayQuery: IQuery = {
   columns: [
     {
       data: 'first_name',
-
       searchable: true,
       orderable: true,
-      search: { value: ['Clement', 'Saanvi'], regex: false },
+      search: {value: ['Clement', 'Saanvi'], regex: false},
     },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 const activatedQuery: IQuery = {
   draw: '2',
   columns: [
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: 'true', regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: 'true', regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
-const posQuery: IQuery = {
+const posEq2Query: IQuery = {
   draw: '2',
   columns: [
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: '>2', regex: false } },
-    { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: 2, regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 3, dir: 'asc' }],
+  order: [{column: 3, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
+};
+
+const posGt2Query: IQuery = {
+  draw: '2',
+  columns: [
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: '>2', regex: false}},
+    {data: 'start_date', searchable: true, orderable: false, search: {value: null, regex: false}},
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
+  ],
+  order: [{column: 3, dir: 'asc'}],
+  start: '0',
+  length: '10',
+  search: {value: null, regex: false},
 };
 
 const dateStringQuery: IQuery = {
   draw: '2',
   columns: [
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
     {
       data: 'start_date',
 
       searchable: true,
       orderable: false,
-      search: { value: '<=>2019.01.02,2019.01.04', regex: false },
+      search: {value: '<=>2019-01-02,2019-01-04', regex: false},
     },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 4, dir: 'asc' }],
+  order: [{column: 4, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 const dateQuery: IQuery = {
   draw: '2',
   columns: [
-    { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
-    { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
+    {data: 'first_name', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'last_name', searchable: false, orderable: true, search: {value: null, regex: false}},
+    {data: 'activated', searchable: true, orderable: true, search: {value: null, regex: false}},
+    {data: 'position', searchable: true, orderable: true, search: {value: null, regex: false}},
     {
       data: 'start_date',
 
       searchable: true,
       orderable: false,
-      search: { value: { from: '2019.01.02', to: new Date('2019.01.04'), op: '>=<' } },
+      search: {value: {from: '2019-01-02', to: new Date('2019.01.04'), op: '>=<'}},
     },
-    { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
+    {data: 'sub_schema.code', searchable: true, orderable: false, search: {value: null, regex: false}},
   ],
-  order: [{ column: 4, dir: 'asc' }],
+  order: [{column: 4, dir: 'asc'}],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 const embededSchemaQuery: IQuery = {
@@ -210,13 +266,13 @@ const embededSchemaQuery: IQuery = {
 
       searchable: true,
       orderable: true,
-      search: { value: 'EMB01', regex: false },
+      search: {value: 'EMB01', regex: false},
     },
   ],
   order: [],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 const embededSubSchemaQuery: IQuery = {
@@ -227,13 +283,13 @@ const embededSubSchemaQuery: IQuery = {
 
       searchable: true,
       orderable: true,
-      search: { value: 'FR01', regex: false },
+      search: {value: 'FR01', regex: false},
     },
   ],
   order: [],
   start: '0',
   length: '10',
-  search: { value: null, regex: false },
+  search: {value: null, regex: false},
 };
 
 describe('Datatable Module', () => {
@@ -244,8 +300,8 @@ describe('Datatable Module', () => {
 
     it(`should set config`, () => {
       let debug = '';
-      const logger = { debug: (...data: any[]) => (debug += data.join(', ')) } as any;
-      const config = DataTableModule.configure({ logger });
+      const logger = {debug: (...data: any[]) => (debug += data.join(', '))} as any;
+      const config = DataTableModule.configure({logger});
       expect(config).to.have.property('logger', logger);
       expect(() => config.logger!.debug('test')).to.not.throw();
       expect(debug).to.equals('test');
@@ -256,7 +312,7 @@ describe('Datatable Module', () => {
     let tests: any[];
 
     before(done => {
-      DataTableModule.configure({ logger });
+      DataTableModule.configure({logger});
       mongoose.connect(mongoUrl);
       mongoose.connection.on('error', done);
       mongoose.connection.on('open', () =>
@@ -284,8 +340,8 @@ describe('Datatable Module', () => {
           start: '0',
           length: '10',
           order: [],
-          search: { value: null, regex: false },
-          columns: [{ data: '_id' }, { data: 'unknownField' }, { data: 'sub_schema_unknown._id' }],
+          search: {value: null, regex: false},
+          columns: [{data: '_id'}, {data: 'unknownField'}, {data: 'sub_schema_unknown._id'}],
         })
         .then((data: any) => {
           expect(data).to.not.be.null;
@@ -303,8 +359,27 @@ describe('Datatable Module', () => {
       });
     });
 
+    it('should find entry with first_name "Clement"', async () => {
+      return model.dataTable(firstNameClementQuery).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        expect(data.data).to.have.lengthOf(1);
+        expect(data.data[0]).to.have.property('first_name', 'Clement');
+      });
+    });
+
     it('should find entry with first_name matching "/Clement|Saanvi/"', async () => {
       return model.dataTable(firstNameQuery).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        expect(data.data).to.have.lengthOf(records.filter((d: any) => /Clement|Saanvi/g.test(d.first_name)).length);
+        expect(data.data[0]).to.have.property('first_name', 'Clement');
+        expect(data.data[1]).to.have.property('first_name', 'Saanvi');
+      });
+    });
+
+    it('should find entry with first_name matching "$in: Clement, Saanvi"', async () => {
+      return model.dataTable(firstNameFilterQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
         expect(data.data).to.have.lengthOf(records.filter((d: any) => /Clement|Saanvi/g.test(d.first_name)).length);
@@ -327,7 +402,7 @@ describe('Datatable Module', () => {
 
     it('should find entry with _id matching', async () => {
       const q = clone(query);
-      q.columns[0].search = { value: tests[0]._id.toString(), regex: false };
+      q.columns[0].search = {value: tests[0]._id.toString(), regex: false};
       return model.dataTable(q).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
@@ -345,8 +420,17 @@ describe('Datatable Module', () => {
       });
     });
 
+    it('should find entries with position equal to 2', async () => {
+      return model.dataTable(posEq2Query).then((data: any) => {
+        expect(data).to.not.be.null;
+        expect(data.draw).to.be.equals('2');
+        expect(data.data).to.have.lengthOf(1);
+        expect(data.data[0].position).to.be.equals(2);
+      });
+    });
+
     it('should find entries with position greater than 2', async () => {
-      return model.dataTable(posQuery).then((data: any) => {
+      return model.dataTable(posGt2Query).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
         expect(data.data).to.have.lengthOf(records.filter((d: any) => d.position > 2).length);
@@ -354,32 +438,32 @@ describe('Datatable Module', () => {
       });
     });
 
-    it('should find entries with start_date string between 2019.01.02 and 2019.01.04', async () => {
+    it('should find entries with start_date string between 2019-01-02 and 2019-01-04', async () => {
       return model.dataTable(dateStringQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
-        const start = new Date('01-02-2019').getTime();
-        const end = new Date('01-04-2019').getTime();
+        const start = new Date('2019-01-02').getTime();
+        const end = new Date('2019-01-04').getTime();
         expect(data.data).to.have.lengthOf(
           records.filter((d: any) => d.start_date.getTime() >= start && d.start_date.getTime() <= end).length
         );
-        expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.02').toDateString());
-        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.03').toDateString());
-        expect((data.data[2].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.04').toDateString());
+        expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-02').toDateString());
+        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-03').toDateString());
+        expect((data.data[2].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-04').toDateString());
       });
     });
 
-    it('should find entries with start_date object between 2019.01.02 and 2019.01.04', async () => {
+    it('should find entries with start_date object between 2019-01-02 and 2019-01-04', async () => {
       return model.dataTable(dateQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
-        const start = new Date('01-02-2019').getTime();
-        const end = new Date('01-04-2019').getTime();
+        const start = new Date('2019-01-02').getTime();
+        const end = new Date('2019-01-04').getTime();
         expect(data.data).to.have.lengthOf(
           records.filter((d: any) => d.start_date.getTime() >= start && d.start_date.getTime() < end).length
         );
-        expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.02').toDateString());
-        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019.01.03').toDateString());
+        expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-02').toDateString());
+        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-03').toDateString());
       });
     });
 
@@ -390,14 +474,14 @@ describe('Datatable Module', () => {
           start: '0',
           length: '10',
           order: [],
-          search: { value: null, regex: false },
+          search: {value: null, regex: false},
           columns: [
             {
               data: 'sub_schema.code',
 
               searchable: true,
               orderable: false,
-              search: { value: 'FR03', regex: false },
+              search: {value: 'FR03', regex: false},
             },
           ],
         })
@@ -438,14 +522,14 @@ describe('Datatable Module', () => {
           order: [],
           start: '0',
           length: '10',
-          search: { value: null, regex: false },
+          search: {value: null, regex: false},
           columns: [
             {
               data: 'array.code',
 
               searchable: true,
               orderable: true,
-              search: { value: 'ARR01', regex: false },
+              search: {value: 'ARR01', regex: false},
             },
           ],
         })
@@ -465,15 +549,15 @@ describe('Datatable Module', () => {
           order: [],
           start: '0',
           length: '10',
-          search: { value: null, regex: false },
+          search: {value: null, regex: false},
           columns: [
-            { data: 'array.code', searchable: true, orderable: true },
+            {data: 'array.code', searchable: true, orderable: true},
             {
               data: 'array.embeded_schema.code',
 
               searchable: true,
               orderable: true,
-              search: { value: 'FR01', regex: false },
+              search: {value: 'FR01', regex: false},
             },
           ],
         })
@@ -495,14 +579,14 @@ describe('Datatable Module', () => {
           order: [],
           start: '0',
           length: '10',
-          search: { value: null, regex: false },
+          search: {value: null, regex: false},
           columns: [
             {
               data: 'embeded_schema_array.code',
 
               searchable: true,
               orderable: true,
-              search: { value: 'FR01', regex: false },
+              search: {value: 'FR01', regex: false},
             },
           ],
         })
@@ -524,12 +608,12 @@ describe('Datatable Module', () => {
 
 async function seed(): Promise<any[]> {
   const subdata = await subModel.insertMany([
-    { code: 'FR01', description: 'code FR01' },
-    { code: 'FR02', description: 'code FR02' },
-    { code: 'FR03', description: 'code FR03' },
-    { code: 'FR04', description: 'code FR04' },
-    { code: 'FR05', description: 'code FR05' },
-    { code: 'FR06', description: 'code FR06' },
+    {code: 'FR01', description: 'code FR01'},
+    {code: 'FR02', description: 'code FR02'},
+    {code: 'FR03', description: 'code FR03'},
+    {code: 'FR04', description: 'code FR04'},
+    {code: 'FR05', description: 'code FR05'},
+    {code: 'FR06', description: 'code FR06'},
   ]);
   records = [
     {
@@ -537,21 +621,21 @@ async function seed(): Promise<any[]> {
       last_name: 'Sadler',
       activated: true,
       position: 1,
-      start_date: new Date('2019.01.01'),
+      start_date: new Date('2019-01-01'),
       sub_schema: subdata[0],
-      array: [{ code: 'ARR01' }, { code: 'ARR02' }, { code: 'ARR03' }],
+      array: [{code: 'ARR01'}, {code: 'ARR02'}, {code: 'ARR03'}],
     },
     {
       first_name: 'Saanvi',
       last_name: 'Meyers',
       activated: false,
       position: 2,
-      start_date: new Date('2019.01.02'),
+      start_date: new Date('2019-01-02'),
       sub_schema: subdata[1],
       array: [
-        { code: 'ARR04', embeded_schema: subdata[0] },
-        { code: 'ARR05', embeded_schema: subdata[1] },
-        { code: 'ARR06' },
+        {code: 'ARR04', embeded_schema: subdata[0]},
+        {code: 'ARR05', embeded_schema: subdata[1]},
+        {code: 'ARR06'},
       ],
     },
     {
@@ -559,7 +643,7 @@ async function seed(): Promise<any[]> {
       last_name: 'Watts',
       activated: true,
       position: 3,
-      start_date: new Date('2019.01.03'),
+      start_date: new Date('2019-01-03'),
       sub_schema: subdata[2],
       embeded_schema_array: [subdata[0], subdata[1]],
     },
@@ -568,7 +652,7 @@ async function seed(): Promise<any[]> {
       last_name: 'Watts',
       activated: false,
       position: 4,
-      start_date: new Date('2019.01.04'),
+      start_date: new Date('2019-01-04'),
       sub_schema: subdata[3],
       embeded_schema_array: [subdata[2], subdata[3]],
     },
@@ -577,7 +661,7 @@ async function seed(): Promise<any[]> {
       last_name: 'Partridge',
       activated: true,
       position: 5,
-      start_date: new Date('2019.01.05'),
+      start_date: new Date('2019-01-05'),
       sub_schema: subdata[4],
     },
     {
@@ -585,7 +669,7 @@ async function seed(): Promise<any[]> {
       last_name: 'Snider',
       activated: false,
       position: 6,
-      start_date: new Date('2020.01.05'),
+      start_date: new Date('2020-01-05'),
       sub_schema: subdata[5],
       embeded_schema: {
         code: 'EMB01',

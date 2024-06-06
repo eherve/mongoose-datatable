@@ -1,10 +1,10 @@
 /** @format */
 
-import * as util from 'util';
-import { assign, trim, lowerCase, merge, set, clone, isArray, concat, map, each, isNil, head, get } from 'lodash';
 import * as escapeStringRegexp from 'escape-string-regexp';
-import { Schema, Model, SchemaType, Types } from 'mongoose';
 import * as flat from 'flat';
+import {assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, set, trim} from 'lodash';
+import {Model, Schema, SchemaType, Types} from 'mongoose';
+import * as util from 'util';
 
 interface ILogger {
   debug: (...data: any) => void;
@@ -94,7 +94,7 @@ export type HandlerType = (query: IQuery, column: IColumn, field: any, search: I
 
 export interface IOptions {
   logger?: ILogger;
-  handlers?: { [type: string]: HandlerType };
+  handlers?: {[type: string]: HandlerType};
   conditions?: any;
   select?: any;
   disableCount?: boolean;
@@ -110,7 +110,7 @@ export interface IData {
 
 export interface IConfig {
   logger?: ILogger;
-  handlers?: { [type: string]: HandlerType };
+  handlers?: {[type: string]: HandlerType};
 }
 
 export class DataTableModule {
@@ -148,7 +148,7 @@ export class DataTableModule {
   constructor(private schema: Schema) {}
 
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
-    this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
+    this.debug(options.logger, 'quey:', util.inspect(query, {depth: null}));
     const aggregate: IAggregateOptions = {
       projection: null,
       populate: [],
@@ -250,7 +250,7 @@ export class DataTableModule {
         },
       });
       data.populate.push({
-        $unwind: { path: `$${data.base}`, preserveNullAndEmptyArrays: true },
+        $unwind: {path: `$${data.base}`, preserveNullAndEmptyArrays: true},
       });
     }
   }
@@ -319,11 +319,11 @@ export class DataTableModule {
     query: IQuery,
     column: IColumn,
     populate: PopulateType
-  ): { field: any; populated: boolean } {
+  ): {field: any; populated: boolean} {
     let populated = false;
     let field: any = this.schema.path(column.data);
     if (field) {
-      return { field, populated };
+      return {field, populated};
     }
     const data = {
       populate,
@@ -415,7 +415,7 @@ export class DataTableModule {
     if (!data.field) {
       this.warn(options.logger, `field path ${column.data} not found !`);
     }
-    return { field: data.field, populated: data.populated };
+    return {field: data.field, populated: data.populated};
   }
 
   private getField(schema: any, path: string): SchemaType {
@@ -454,12 +454,12 @@ export class DataTableModule {
   private addSearch(csearch: any[], search: any[] = [], conditions?: any): any {
     let asearch: any;
     if (conditions || search.length || csearch.length) {
-      asearch = { $and: [] };
+      asearch = {$and: []};
       if (conditions) {
         asearch.$and.push(conditions);
       }
       if (search.length) {
-        asearch.$and.push({ $or: search });
+        asearch.$and.push({$or: search});
       }
       if (csearch.length) {
         asearch.$and = asearch.$and.concat(csearch);
@@ -468,7 +468,7 @@ export class DataTableModule {
     return asearch;
   }
 
-  private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): { search: any[]; csearch: any[] } {
+  private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): {search: any[]; csearch: any[]} {
     const search = [],
       csearch = [];
     if (query.search && query.search.value !== undefined && query.search.value !== '') {
@@ -483,7 +483,7 @@ export class DataTableModule {
         csearch.push(s);
       }
     }
-    return { search, csearch };
+    return {search, csearch};
   }
 
   private getChunkSearch(search: string): string[] {
@@ -529,20 +529,16 @@ export class DataTableModule {
     }
     switch (instance) {
       case 'String':
-        if (global) return this.buildGlobalColumnSearchString(options, column, search);
-        return this.buildColumnSearchString(options, column, search);
+        return this.buildColumnSearchString(options, column, search, global);
       case 'Boolean':
-        if (global) break;
-        return this.buildColumnSearchBoolean(options, column, search);
+        return this.buildColumnSearchBoolean(options, column, search, global);
       case 'Number':
-        if (global) return this.buildGlobalColumnSearchNumber(options, column, search);
-        return this.buildColumnSearchNumber(options, column, search);
+        return this.buildColumnSearchNumber(options, column, search, global);
       case 'Date':
-        if (global) break;
-        return this.buildColumnSearchDate(options, column, search);
+        return this.buildColumnSearchDate(options, column, search, global);
       case 'ObjectID':
       case 'ObjectId':
-        return this.buildColumnSearchObjectId(options, column, search);
+        return this.buildColumnSearchObjectId(options, column, search, global);
       default:
         if (options.handlers && options.handlers.default) {
           return options.handlers.default(query, column, field, search, global);
@@ -577,147 +573,121 @@ export class DataTableModule {
     return 'Mixed';
   }
 
-  private buildGlobalColumnSearchString(options: IOptions, column: IColumn, search: ISearch): any {
-    this.debug(options.logger, 'buildGlobalColumnSearchString:', column.data, search);
-    const s: any[] = map(search.chunks, chunk => ({
-      [column.data]: new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
-    }));
-    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
-  }
-
-  private buildColumnSearchString(options: IOptions, column: IColumn, search: ISearch): any {
+  private buildColumnSearchString(options: IOptions, column: IColumn, search: ISearch, global = false): any {
     this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
-    const s: any[] = map(isArray(search.value) ? search.value : [search.value], chunk => ({
-      [column.data]: chunk.match(/^\/.*\/$/)
-        ? new RegExp(`${chunk.substring(1, chunk.length - 1)}`, 'gi')
-        : new RegExp(`${escapeStringRegexp(chunk)}`, 'gi'),
-    }));
-    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+    const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
+    const s: any[] = map(values, val => {
+      if (typeof val === 'string') {
+        if (search.regex) return {[column.data]: new RegExp(`${val.substring(1, val.length - 1)}`, 'gi')};
+        return {[column.data]: new RegExp(`${escapeStringRegexp(val)}`, 'gi')};
+      }
+      return {[column.data]: val};
+    });
+    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
   }
 
-  private buildColumnSearchBoolean(options: IOptions, column: IColumn, search: ISearch): any {
+  private buildColumnSearchBoolean(options: IOptions, column: IColumn, search: ISearch, global = false): any {
+    if (global) return;
     this.debug(options.logger, 'buildColumnSearchBoolean:', column.data, search);
     if (['string', 'boolean'].includes(typeof search.value)) {
       const value = typeof search.value === 'boolean' ? search.value : lowerCase(trim(search.value));
       if (value === 'true' || value === true) {
-        return { [column.data]: true };
+        return {[column.data]: true};
       } else if (value === 'false' || value === false) {
-        return { [column.data]: false };
+        return {[column.data]: false};
       }
     }
     this.warn(options.logger, `buildColumnSearchBoolean unmanaged search value '${search.value}'`);
-    return null;
   }
 
-  private buildGlobalColumnSearchNumber(options: IOptions, column: IColumn, search: ISearch): any {
-    this.debug(options.logger, 'buildGlobalColumnSearchNumber:', column.data, search);
-    const s: any[] = [];
-    each(search.chunks, chunk => {
-      if (!isNaN(chunk as any)) {
-        s.push({ [column.data]: new Number(chunk).valueOf() });
-      }
-    });
-    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
-  }
-
-  private buildColumnSearchNumber(options: IOptions, column: IColumn, search: ISearch): any {
-    this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
-    if (/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/.test(search.value)) {
-      const op = RegExp.$1;
-      const from = new Number(RegExp.$2);
-      const to = new Number(RegExp.$3);
-      const columnSearch: any = {};
-      switch (op) {
-        case '>':
-          columnSearch[column.data] = { $gt: from.valueOf() };
-          break;
-        case '>=':
-          columnSearch[column.data] = { $gte: from.valueOf() };
-          break;
-        case '<':
-          columnSearch[column.data] = { $lt: from.valueOf() };
-          break;
-        case '<=':
-          columnSearch[column.data] = { $lte: from.valueOf() };
-          break;
-        case '<>':
-          columnSearch[column.data] = { $gt: from.valueOf(), $lt: to.valueOf() };
-          break;
-        case '<=>':
-          columnSearch[column.data] = { $gte: from.valueOf(), $lte: to.valueOf() };
-          break;
-        default:
-          columnSearch[column.data] = from.valueOf();
-      }
-      return columnSearch;
-    }
-    this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${search.value}'`);
-    return null;
-  }
-
-  private buildColumnSearchDate(options: IOptions, column: IColumn, search: ISearch): any {
-    this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
-    let op: string, from: Date, to: Date;
-    if (
-      typeof search.value === 'string' &&
-      /^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/.test(search.value)
-    ) {
-      op = RegExp.$1;
-      const $2 = RegExp.$2;
-      from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
-      if (!(from instanceof Date) || isNaN(from.valueOf())) {
-        return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
-      }
-      const $3 = RegExp.$3;
-      to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
-      if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-        return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
-      }
-    } else if (search.value?.from || search.value?.to) {
-      op = search.value.op || '>=<';
-      let fromDate = search.value?.from ? new Date(search.value.from) : null;
-      if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) {
-        from = fromDate;
-      }
-      let toDate = search.value?.to ? new Date(search.value.to) : null;
-      if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) {
-        to = toDate;
-      }
-    } else {
-      this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
-      return null;
-    }
+  private buildCompare(op: string, from: any, to: any) {
     switch (op) {
       case '>':
-        return { [column.data]: { $gt: from } };
+        return {$gt: from};
       case '>=':
-        return { [column.data]: { $gte: from } };
+        return {$gte: from};
       case '<':
-        return { [column.data]: { $lt: from } };
+        return {$lt: from};
       case '<=':
-        return { [column.data]: { $lte: from } };
+        return {$lte: from};
       case '<>':
-        return { [column.data]: { $gt: from, $lt: to } };
+        return {$gt: from, $lt: to};
       case '<=>':
-        return { [column.data]: { $gte: from, $lte: to } };
+        return {$gte: from, $lte: to};
       case '><=':
-        return { [column.data]: { $gt: from, $lte: to } };
+        return {$gt: from, $lte: to};
       case '>=<':
-        return { [column.data]: { $gte: from, $lt: to } };
+        return {$gte: from, $lt: to};
       default:
-        return { [column.data]: from };
+        return from;
     }
   }
 
-  private buildColumnSearchObjectId(options: IOptions, column: IColumn, search: ISearch): any {
+  private buildColumnSearchNumber(options: IOptions, column: IColumn, search: ISearch, global = false): any {
+    this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
+    const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
+    const s: any[] = [];
+    each(values, val => {
+      if (typeof val === 'string') {
+        const match = val.match(/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/);
+        if (match) {
+          const op = match.at(1);
+          const from = new Number(match.at(2));
+          const to = new Number(match.at(3));
+          return s.push({[column.data]: this.buildCompare(op, from.valueOf(), to.valueOf())});
+        }
+        return this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${val}'`);
+      }
+      return s.push({[column.data]: val});
+    });
+    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+  }
+
+  private buildColumnSearchDate(options: IOptions, column: IColumn, search: ISearch, global = false): any {
+    this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
+    const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
+    const s: any[] = [];
+    each(values, val => {
+      let op: string, from: Date, to: Date;
+      if (typeof val === 'string') {
+        const match = val.match(/^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/);
+        if (!match) return this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
+        op = match.at(1);
+        const $2 = match.at(2);
+        from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
+        if (!(from instanceof Date) || isNaN(from.valueOf())) {
+          return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
+        }
+        const $3 = match.at(3);
+        to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
+        if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
+          return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
+        }
+        return s.push({[column.data]: this.buildCompare(op, from, to)});
+      }
+      if (val?.from || val?.to) {
+        op = val.op || '>=<';
+        const fromDate = val?.from ? new Date(val.from) : null;
+        if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) from = fromDate;
+        const toDate = val?.to ? new Date(val.to) : null;
+        if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) to = toDate;
+        return s.push({[column.data]: this.buildCompare(op, from, to)});
+      }
+      return s.push({[column.data]: val});
+    });
+    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+  }
+
+  private buildColumnSearchObjectId(options: IOptions, column: IColumn, search: ISearch, global = false): any {
+    if (global) return;
     this.debug(options.logger, 'buildColumnSearchObjectId:', column.data, search);
-    if (Types.ObjectId.isValid(search.value)) {
-      const columnSearch: any = {};
-      columnSearch[column.data] = new Types.ObjectId(search.value);
-      return columnSearch;
-    }
-    this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
-    return null;
+    const values = isArray(search.value) ? search.value : [search.value];
+    const s: any[] = [];
+    each(values, val => {
+      if (Types.ObjectId.isValid(val)) return s.push({[column.data]: new Types.ObjectId(val)});
+      this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
+    });
+    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
   }
 
   private pagination(query: IQuery): IPagination {
@@ -751,11 +721,11 @@ export class DataTableModule {
   private async recordsTotal(options: IOptions): Promise<number> {
     if (!!options.unwind?.length) {
       const aggregate = [];
-      options.unwind.forEach($unwind => aggregate.push({ $unwind }));
-      aggregate.push({ $match: options.conditions });
+      options.unwind.forEach($unwind => aggregate.push({$unwind}));
+      aggregate.push({$match: options.conditions});
       // aggregate.push({ $group: { _id: null, count: { $sum: 1 } } });
       // return get(head(await this.model.aggregate(aggregate)), 'count');
-      aggregate.push({ $count: 'count' });
+      aggregate.push({$count: 'count'});
       return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
     }
     return this.model.countDocuments(options.conditions);
@@ -770,32 +740,32 @@ export class DataTableModule {
       return Promise.resolve(recordsTotal);
     }
     const aggregate: any[] = [];
-    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
-    if (aggregateOptions.search) aggregate.push({ $match: aggregateOptions.search });
+    (options.unwind || []).forEach($unwind => aggregate.push({$unwind}));
+    if (aggregateOptions.search) aggregate.push({$match: aggregateOptions.search});
     aggregateOptions.populate.forEach(data => aggregate.push(data));
-    if (aggregateOptions.afterPopulateSearch) aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
-    aggregate.push({ $count: 'count' });
+    if (aggregateOptions.afterPopulateSearch) aggregate.push({$match: aggregateOptions.afterPopulateSearch});
+    aggregate.push({$count: 'count'});
     return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
   }
 
   private async data(options: IOptions, aggregateOptions: IAggregateOptions): Promise<any[]> {
     const aggregate: any[] = [];
-    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
+    (options.unwind || []).forEach($unwind => aggregate.push({$unwind}));
     if (aggregateOptions.search) {
-      aggregate.push({ $match: aggregateOptions.search });
+      aggregate.push({$match: aggregateOptions.search});
     }
     aggregateOptions.populate.forEach(data => aggregate.push(data));
     if (aggregateOptions.afterPopulateSearch) {
-      aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+      aggregate.push({$match: aggregateOptions.afterPopulateSearch});
     }
     if (aggregateOptions.projection) {
-      aggregate.push({ $project: aggregateOptions.projection });
+      aggregate.push({$project: aggregateOptions.projection});
     }
     if (aggregateOptions.groupBy) {
       this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
     }
     if (aggregateOptions.sort) {
-      aggregate.push({ $sort: aggregateOptions.sort });
+      aggregate.push({$sort: aggregateOptions.sort});
     }
     if (aggregateOptions.pagination) {
       if (aggregateOptions.pagination.start) {
@@ -804,10 +774,10 @@ export class DataTableModule {
         });
       }
       if (aggregateOptions.pagination.length) {
-        aggregate.push({ $limit: aggregateOptions.pagination.length });
+        aggregate.push({$limit: aggregateOptions.pagination.length});
       }
     }
-    this.debug(options.logger, util.inspect(aggregate, { depth: null }));
+    this.debug(options.logger, util.inspect(aggregate, {depth: null}));
     return this.model.aggregate(aggregate).allowDiskUse(true);
   }
 
@@ -817,11 +787,11 @@ export class DataTableModule {
     let id: any[] = [];
     aggregateOptions.groupBy.forEach((gb, i) => {
       set(_id, gb, `$${gb}`);
-      id = id.concat({ $toString: `$_id.${gb}` });
+      id = id.concat({$toString: `$_id.${gb}`});
       const groupBy: any = {};
       if (i < aggregateOptions.groupBy.length - 1) {
         groupBy[`gb${i}`] = {
-          id: { $concat: id },
+          id: {$concat: id},
           count: '$groupByCount',
           field: gb,
           value: `$_id.${gb}`,
@@ -832,7 +802,7 @@ export class DataTableModule {
           groupBy.groupBy.push(`$data.gb${i}`);
         }
         groupBy.groupBy.push({
-          id: { $concat: id },
+          id: {$concat: id},
           count: '$groupByCount',
           field: gb,
           value: `$_id.${gb}`,
@@ -841,13 +811,13 @@ export class DataTableModule {
       aggregate.push({
         $group: {
           _id: clone(_id),
-          groupByCount: { $sum: 1 },
-          data: { $push: '$$ROOT' },
+          groupByCount: {$sum: 1},
+          data: {$push: '$$ROOT'},
         },
       });
-      aggregate.push({ $unwind: '$data' });
+      aggregate.push({$unwind: '$data'});
       aggregate.push({
-        $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } },
+        $replaceRoot: {newRoot: {$mergeObjects: ['$data', groupBy]}},
       });
     });
     return aggregate;
