@@ -7,6 +7,7 @@ import * as mongoose from 'mongoose';
 import DataTableModule, {IData, IOptions, IQuery} from './datatable.js';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
+mongoose.set('strictQuery', false);
 mongoose.plugin(DataTableModule.init);
 const subSchema = new mongoose.Schema({
   code: String,
@@ -341,12 +342,13 @@ describe('Datatable Module', () => {
           length: '10',
           order: [],
           search: {value: null, regex: false},
-          columns: [{data: '_id'}, {data: 'unknownField'}, {data: 'sub_schema_unknown._id'}],
+          columns: [{data: '_id'}, {data: 'unknownField'}, {data: 'sub_schema_unknown._id'}, {data: 'notInModelField'}],
         })
         .then((data: any) => {
           expect(data).to.not.be.null;
           expect(data.draw).to.be.equals('2');
           expect(data.data).to.have.lengthOf(records.length);
+          expect(data.data[0]).to.have.property('notInModelField', 'test notInModelField');
         });
     });
 
@@ -678,5 +680,6 @@ async function seed(): Promise<any[]> {
     },
   ];
   const res = await model.insertMany(records);
+  await model.collection.updateOne({_id: res[0]._id}, {$set: {notInModelField: 'test notInModelField'}});
   return res;
 }

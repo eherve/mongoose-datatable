@@ -21,10 +21,9 @@ class DataTableModule {
     }
     static init(schema, config) {
         const dataTableModule = new DataTableModule(schema);
-        if (config)
-            schema.statics.dataTableConfig = config;
+        schema.statics.dataTableConfig = (0, lodash_1.merge)({}, DataTableModule.CONFIG, config);
         schema.statics.dataTable = function (query, options) {
-            options = (0, lodash_1.merge)({}, schema.statics.dataTableConfig || {}, options || {});
+            options = (0, lodash_1.merge)({}, schema.statics.dataTableConfig, options);
             dataTableModule.model = this;
             return dataTableModule.dataTable(query, options);
         };
@@ -110,7 +109,7 @@ class DataTableModule {
         catch (err) { }
         return null;
     }
-    fetchFieldRef(data) {
+    addFieldRef(data) {
         data.populated = true;
         data.model = this.getModel(data.model, data.field.options.ref);
         if (!data.model)
@@ -130,7 +129,7 @@ class DataTableModule {
             });
         }
     }
-    fetchFieldArrayRef(data) {
+    addFieldArrayRef(data) {
         data.populated = true;
         data.model = this.getModel(data.model, data.field.options.ref);
         if (!data.model)
@@ -180,12 +179,21 @@ class DataTableModule {
             });
         }
     }
+    fieldNotFound(options, column, data) {
+        if (!data?.model) {
+            this.warn(options.logger, `field path ${column.data} refered model ${data.field?.options?.ref} not found !`);
+        }
+        else
+            this.warn(options.logger, `field path ${column.data} not found !`);
+        if (!options.processUnknownFields)
+            return;
+        return { field: { path: column.data }, populated: false };
+    }
     fetchField(options, query, column, populate) {
         let populated = false;
         let field = this.schema.path(column.data);
-        if (field) {
+        if (field)
             return { field, populated };
-        }
         const data = {
             populate,
             populated,
@@ -198,28 +206,22 @@ class DataTableModule {
         };
         while (data.path.length) {
             data.field = data.schema.path(data.path) || this.getField(data.schema, data.path);
-            if (!data.field) {
-                this.warn(options.logger, `field path ${column.data} not found !`);
-                return;
-            }
+            if (!data.field)
+                return this.fieldNotFound(options, column, data);
             data.base += (data.base.length ? '.' : '') + data.field.path;
             data.path = data.path.substring(data.field.path.length + 1);
             // ref field
             if (data.field.options && data.field.options.ref && !data.inArray) {
-                this.fetchFieldRef(data);
-                if (!data.model) {
-                    this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
-                    return;
-                }
+                this.addFieldRef(data);
+                if (!data.model)
+                    return this.fieldNotFound(options, column, data);
                 continue;
             }
             // ref field in array
             if (data.field.options && data.field.options.ref && !!data.inArray) {
-                this.fetchFieldArrayRef(data);
-                if (!data.model) {
-                    this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
-                    return;
-                }
+                this.addFieldArrayRef(data);
+                if (!data.model)
+                    return this.fieldNotFound(options, column, data);
                 continue;
             }
             // ref array field ref
@@ -663,6 +665,7 @@ exports.DataTableModule = DataTableModule;
 DataTableModule.CONFIG = {
     logger: null,
     handlers: {},
+    processUnknownFields: true,
 };
 exports.default = DataTableModule;
 //# sourceMappingURL=datatable.js.map

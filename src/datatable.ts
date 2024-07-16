@@ -1,10 +1,20 @@
 /** @format */
 
-import * as escapeStringRegexp from 'escape-string-regexp';
 import * as flat from 'flat';
 import {assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, set, trim} from 'lodash';
 import {Model, Schema, SchemaType, Types} from 'mongoose';
 import * as util from 'util';
+
+interface IFetchFieldData {
+  populate: PopulateType;
+  populated: boolean;
+  field: SchemaType;
+  path: string;
+  model: Model<any>;
+  schema: Schema<any>;
+  base: string;
+  inArray: string | null;
+}
 
 interface ILogger {
   debug: (...data: any) => void;
@@ -99,6 +109,7 @@ export interface IOptions {
   select?: any;
   disableCount?: boolean;
   unwind?: string[];
+  processUnknownFields?: boolean;
 }
 
 export interface IData {
@@ -111,21 +122,26 @@ export interface IData {
 export interface IConfig {
   logger?: ILogger;
   handlers?: {[type: string]: HandlerType};
+  processUnknownFields?: boolean;
 }
 
 export class DataTableModule {
   static CONFIG: IConfig = {
     logger: null,
     handlers: {},
+    processUnknownFields: true,
   };
 
   private _config: IConfig = DataTableModule.CONFIG;
+
   private get config() {
     return this._config;
   }
+
   private get logger() {
     return this._config.logger;
   }
+
   private model: Model<any>;
 
   static configure(config?: IConfig): IConfig {
@@ -137,9 +153,9 @@ export class DataTableModule {
 
   static init(schema: any, config?: IConfig) {
     const dataTableModule = new DataTableModule(schema);
-    if (config) schema.statics.dataTableConfig = config;
+    schema.statics.dataTableConfig = merge({}, DataTableModule.CONFIG, config);
     schema.statics.dataTable = function (query: IQuery, options?: IOptions) {
-      options = merge({}, schema.statics.dataTableConfig || {}, options || {});
+      options = merge({}, schema.statics.dataTableConfig , options);
       dataTableModule.model = this;
       return dataTableModule.dataTable(query, options);
     };
@@ -228,7 +244,7 @@ export class DataTableModule {
     return null;
   }
 
-  private fetchFieldRef(data: {
+  private addFieldRef(data: {
     populated: boolean;
     populate: PopulateType;
     model: Model<any>;
@@ -255,7 +271,7 @@ export class DataTableModule {
     }
   }
 
-  private fetchFieldArrayRef(data: {
+  private addFieldArrayRef(data: {
     populated: boolean;
     populate: PopulateType;
     model: Model<any>;
@@ -314,6 +330,14 @@ export class DataTableModule {
     }
   }
 
+  private fieldNotFound(options: IOptions, column: IColumn, data: IFetchFieldData) {
+    if (!data?.model) {
+      this.warn(options.logger, `field path ${column.data} refered model ${data.field?.options?.ref} not found !`);
+    } else this.warn(options.logger, `field path ${column.data} not found !`);
+    if (!options.processUnknownFields) return;
+    return {field: {path: column.data}, populated: false};
+  }
+
   private fetchField(
     options: IOptions,
     query: IQuery,
@@ -322,10 +346,8 @@ export class DataTableModule {
   ): {field: any; populated: boolean} {
     let populated = false;
     let field: any = this.schema.path(column.data);
-    if (field) {
-      return {field, populated};
-    }
-    const data = {
+    if (field) return {field, populated};
+    const data: IFetchFieldData = {
       populate,
       populated,
       field,
@@ -338,46 +360,37 @@ export class DataTableModule {
 
     while (data.path.length) {
       data.field = data.schema.path(data.path) || this.getField(data.schema, data.path);
-      if (!data.field) {
-        this.warn(options.logger, `field path ${column.data} not found !`);
-        return;
-      }
+      if (!data.field) return this.fieldNotFound(options, column, data);
       data.base += (data.base.length ? '.' : '') + data.field.path;
       data.path = data.path.substring(data.field.path.length + 1);
 
       // ref field
       if (data.field.options && data.field.options.ref && !data.inArray) {
-        this.fetchFieldRef(data);
-        if (!data.model) {
-          this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
-          return;
-        }
+        this.addFieldRef(data);
+        if (!data.model) return this.fieldNotFound(options, column, data);
         continue;
       }
 
       // ref field in array
       if (data.field.options && data.field.options.ref && !!data.inArray) {
-        this.fetchFieldArrayRef(data);
-        if (!data.model) {
-          this.warn(options.logger, `field path ${column.data} refered model ${data.field.options.ref} not found !`);
-          return;
-        }
+        this.addFieldArrayRef(data);
+        if (!data.model) return this.fieldNotFound(options, column, data);
         continue;
       }
 
       // ref array field ref
       if (
         data.field.instance === 'Array' &&
-        data.field.caster &&
-        data.field.caster.options &&
-        data.field.caster.options.ref
+        (data.field as any).caster &&
+        (data.field as any).caster.options &&
+        (data.field as any).caster.options.ref
       ) {
         data.populated = true;
-        data.model = this.getModel(data.model, data.field.caster.options.ref);
+        data.model = this.getModel(data.model, (data.field as any).caster.options.ref);
         if (!data.model) {
           this.warn(
             options.logger,
-            `field path ${column.data} refered model ${data.field.caster.options.ref} not found !`
+            `field path ${column.data} refered model ${(data.field as any).caster.options.ref} not found !`
           );
           return;
         }
