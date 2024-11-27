@@ -79,7 +79,7 @@ class DataTableModule {
         }
         query.columns.forEach(column => {
             const finfo = this.fetchField(options, query, column, aggregate.populate);
-            if (!finfo)
+            if (!finfo?.field)
                 return;
             if (!this.isSelectable(finfo.field))
                 return;
@@ -486,12 +486,12 @@ class DataTableModule {
                 const $2 = match.at(2);
                 from = isNaN($2) ? new Date($2) : new Date(parseInt($2));
                 if (!(from instanceof Date) || isNaN(from.valueOf())) {
-                    return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
+                    return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}'`);
                 }
                 const $3 = match.at(3);
                 to = isNaN($3) ? new Date($3) : new Date(parseInt($3));
                 if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-                    return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
+                    return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}'`);
                 }
                 return s.push({ [column.data]: this.buildCompare(op, from, to) });
             }
@@ -505,7 +505,7 @@ class DataTableModule {
                     to = toDate;
                 return s.push({ [column.data]: this.buildCompare(op, from, to) });
             }
-            return s.push({ [column.data]: val });
+            return this.warn(options.logger, `buildColumnSearchDate invalid value '${val}'`);
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }

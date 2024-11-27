@@ -40,6 +40,7 @@ export interface IOptions {
     select?: any;
     disableCount?: boolean;
     unwind?: string[];
+    processUnknownFields?: boolean;
 }
 export interface IData {
     draw: string;
@@ -52,6 +53,7 @@ export interface IConfig {
     handlers?: {
         [type: string]: HandlerType;
     };
+    processUnknownFields?: boolean;
 }
 export declare class DataTableModule {
     private schema;
@@ -67,8 +69,9 @@ export declare class DataTableModule {
     private buildSort;
     private updateAggregateOptions;
     private getModel;
-    private fetchFieldRef;
-    private fetchFieldArrayRef;
+    private addFieldRef;
+    private addFieldArrayRef;
+    private fieldNotFound;
     private fetchField;
     private getField;
     private addProjection;

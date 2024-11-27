@@ -155,7 +155,7 @@ export class DataTableModule {
     const dataTableModule = new DataTableModule(schema);
     schema.statics.dataTableConfig = merge({}, DataTableModule.CONFIG, config);
     schema.statics.dataTable = function (query: IQuery, options?: IOptions) {
-      options = merge({}, schema.statics.dataTableConfig , options);
+      options = merge({}, schema.statics.dataTableConfig, options);
       dataTableModule.model = this;
       return dataTableModule.dataTable(query, options);
     };
@@ -216,7 +216,7 @@ export class DataTableModule {
     }
     query.columns.forEach(column => {
       const finfo = this.fetchField(options, query, column, aggregate.populate);
-      if (!finfo) return;
+      if (!finfo?.field) return;
       if (!this.isSelectable(finfo.field)) return;
       if (this.isTrue(column.searchable)) {
         if (column.search && column.search.value !== undefined && column.search.value !== '') {
@@ -666,12 +666,12 @@ export class DataTableModule {
         const $2 = match.at(2);
         from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
         if (!(from instanceof Date) || isNaN(from.valueOf())) {
-          return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}`);
+          return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}'`);
         }
         const $3 = match.at(3);
         to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
         if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-          return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}`);
+          return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}'`);
         }
         return s.push({[column.data]: this.buildCompare(op, from, to)});
       }
@@ -683,7 +683,7 @@ export class DataTableModule {
         if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) to = toDate;
         return s.push({[column.data]: this.buildCompare(op, from, to)});
       }
-      return s.push({[column.data]: val});
+      return this.warn(options.logger, `buildColumnSearchDate invalid value '${val}'`);
     });
     return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
   }
