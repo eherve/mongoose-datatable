@@ -6,7 +6,8 @@ const flat = require("flat");
 const lodash_1 = require("lodash");
 const mongoose_1 = require("mongoose");
 const util = require("util");
-const SearchOperator = ['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'];
+const SearchOperator = (0, lodash_1.orderBy)(['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'], ['length'], ['desc']);
+console.log(SearchOperator);
 class DataTableModule {
     get config() {
         return this._config;
@@ -457,9 +458,8 @@ class DataTableModule {
                 return value1;
         }
     }
-    parseStringValue(val, kind) {
-        let valueTmpl = kind === 'number' ? '[0-9.,]+' : '[0-9.\\-,/]+';
-        const regexp = new RegExp(`^(${SearchOperator.join('|')})?(${valueTmpl})$`);
+    parseStringValue(val) {
+        const regexp = new RegExp(`^(${SearchOperator.join('|')})?(.*)$`);
         const match = val.match(regexp);
         if (match) {
             return { op: match.at(1), values: match.at(2)?.split(',') };
@@ -484,9 +484,11 @@ class DataTableModule {
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
     buildColumnSearchNumberString(val) {
-        const data = this.parseStringValue(val, 'number');
+        const data = this.parseStringValue(val);
         if (data) {
-            return this.buildCompare(data.op, !(0, lodash_1.isNil)(data.values[0]) ? parseFloat(data.values[0]) : undefined, !(0, lodash_1.isNil)(data.values[1]) ? parseFloat(data.values[1]).valueOf() : undefined);
+            const values = (0, lodash_1.filter)((0, lodash_1.map)(data.values, value => parseFloat(value)), value => !isNaN(value));
+            if (values.length)
+                return this.buildCompare(data.op, values[0], values[1]);
         }
     }
     buildColumnSearchDate(options, column, search, global = false) {
@@ -516,9 +518,13 @@ class DataTableModule {
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
     buildColumnSearchDateString(val) {
-        const data = this.parseStringValue(val, 'date');
+        const data = this.parseStringValue(val);
+        console.log(val, data);
         if (data) {
-            return this.buildCompare(data.op, !(0, lodash_1.isNil)(data.values[0]) ? new Date(data.values[0]) : undefined, !(0, lodash_1.isNil)(data.values[1]) ? new Date(data.values[1]) : undefined);
+            const values = (0, lodash_1.filter)((0, lodash_1.map)(data.values, value => new Date(value)), value => !isNaN(value.valueOf()));
+            console.log(values);
+            if (values.length)
+                return this.buildCompare(data.op, values[0], values[1]);
         }
     }
     buildColumnSearchObjectId(options, column, search, global = false) {

@@ -1,7 +1,7 @@
 /** @format */
 
 import * as flat from 'flat';
-import { assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, set, trim } from 'lodash';
+import { assign, clone, concat, each, filter, isArray, isNil, lowerCase, map, merge, orderBy, set, trim } from 'lodash';
 import { Model, Schema, SchemaType, Types } from 'mongoose';
 import * as util from 'util';
 
@@ -39,7 +39,11 @@ interface IOrder {
   dir: string;
 }
 export type SearchOperator = '>' | '>=' | '≥' | '<' | '<=' | '≤' | '<>' | '<=>' | '≤≥' | '><=' | '>=<';
-const SearchOperator: SearchOperator[] = ['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'];
+const SearchOperator: SearchOperator[] = orderBy(
+  ['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'],
+  ['length'],
+  ['desc']
+);
 export interface ISearch {
   value: any;
   regex?: boolean;
@@ -638,9 +642,8 @@ export class DataTableModule {
     }
   }
 
-  private parseStringValue(val: string, kind: 'number' | 'date'): { op: SearchOperator; values: string[] } | null {
-    let valueTmpl = kind === 'number' ? '[0-9.,]+' : '[0-9.\\-,/]+';
-    const regexp = new RegExp(`^(${SearchOperator.join('|')})?(${valueTmpl})$`);
+  private parseStringValue(val: string): { op: SearchOperator; values: string[] } | null {
+    const regexp = new RegExp(`^(${SearchOperator.join('|')})?(.*)$`);
     const match = val.match(regexp);
     if (match) {
       return { op: match.at(1) as SearchOperator, values: match.at(2)?.split(',') };
@@ -665,13 +668,13 @@ export class DataTableModule {
   }
 
   private buildColumnSearchNumberString(val: string): any {
-    const data = this.parseStringValue(val, 'number');
+    const data = this.parseStringValue(val);
     if (data) {
-      return this.buildCompare(
-        data.op,
-        !isNil(data.values[0]) ? parseFloat(data.values[0]) : undefined,
-        !isNil(data.values[1]) ? parseFloat(data.values[1]).valueOf() : undefined
+      const values = filter(
+        map(data.values, value => parseFloat(value)),
+        value => !isNaN(value)
       );
+      if (values.length) return this.buildCompare(data.op, values[0], values[1]);
     }
   }
 
@@ -699,13 +702,13 @@ export class DataTableModule {
   }
 
   private buildColumnSearchDateString(val: string): { op: string; from: Date; to: Date } | void {
-    const data = this.parseStringValue(val, 'date');
+    const data = this.parseStringValue(val);
     if (data) {
-      return this.buildCompare(
-        data.op,
-        !isNil(data.values[0]) ? new Date(data.values[0]) : undefined,
-        !isNil(data.values[1]) ? new Date(data.values[1]) : undefined
+      const values = filter(
+        map(data.values, value => new Date(value)),
+        value => !isNaN(value.valueOf())
       );
+      if (values.length) return this.buildCompare(data.op, values[0], values[1]);
     }
   }
 
