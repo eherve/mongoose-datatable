@@ -6,8 +6,7 @@ const flat = require("flat");
 const lodash_1 = require("lodash");
 const mongoose_1 = require("mongoose");
 const util = require("util");
-const SearchOperator = (0, lodash_1.orderBy)(['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'], ['length'], ['desc']);
-console.log(SearchOperator);
+const SearchOperator = (0, lodash_1.orderBy)(['>', '>=', '≥', '<', '≤', '<>', '≤≥', '><', '≥≤'], ['length'], ['desc']);
 class DataTableModule {
     get config() {
         return this._config;
@@ -431,101 +430,88 @@ class DataTableModule {
                 return { [column.data]: false };
             }
         }
-        this.warn(options.logger, `buildColumnSearchBoolean unmanaged search value '${search.value}'`);
     }
-    buildCompare(op, value1, value2) {
+    buildCompare(property, op, values) {
         switch (op) {
             case '>':
-                return { $gt: value1 };
-            case '>=':
+                return { [property]: { $gt: values[0] } };
             case '≥':
-                return { $gte: value1 };
+                return { [property]: { $gte: values[0] } };
             case '<':
-                return { $lt: value1 };
-            case '<=':
+                return { [property]: { $lt: values[0] } };
             case '≤':
-                return { $lte: value1 };
+                return { [property]: { $lte: values[0] } };
             case '<>':
-                return { $gt: value1, $lt: value2 };
-            case '<=>':
+                return { [property]: { $gt: values[0], $lt: values[1] } };
             case '≤≥':
-                return { $gte: value1, $lte: value2 };
-            case '><=':
-                return { $gt: value1, $lte: value2 };
-            case '>=<':
-                return { $gte: value1, $lt: value2 };
+                return { [property]: { $gte: values[0], $lte: values[1] } };
+            case '><':
+                return { [property]: { $gt: values[0], $lt: values[1] } };
+            case '≥≤':
+                return { [property]: { $gte: values[0], $lte: values[1] } };
             default:
-                return value1;
+                return { [property]: { $eq: values[0] } };
         }
-    }
-    parseStringValue(val) {
-        const regexp = new RegExp(`^(${SearchOperator.join('|')})?(.*)$`);
-        const match = val.match(regexp);
-        if (match) {
-            return { op: match.at(1), values: match.at(2)?.split(',') };
-        }
-        return null;
     }
     buildColumnSearchNumber(options, column, search, global = false) {
         this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
         const values = global ? search.chunks : (0, lodash_1.isArray)(search.value) ? search.value : [search.value];
         const s = [];
         (0, lodash_1.each)(values, val => {
-            let compare;
-            if (typeof val === 'string') {
-                compare = this.buildColumnSearchNumberString(val);
+            const values = [];
+            if (typeof val === 'string')
+                values.push(...this.getNumberStringValues(val));
+            else if (typeof val === 'number')
+                values.push(val);
+            else if (val?.from || val?.to) {
+                const from = val?.from ? parseFloat(val.from) : undefined;
+                if (from && !isNaN(from.valueOf()))
+                    values.push(from);
+                const to = val?.to ? parseFloat(val.to) : undefined;
+                if (to && !isNaN(to.valueOf()))
+                    values.push(to);
             }
-            else if (typeof val === 'number') {
-                compare = this.buildCompare(search.operator, val);
-            }
-            if (compare)
-                s.push({ [column.data]: compare });
+            if (values.length)
+                s.push(this.buildCompare(column.data, search.operator, values));
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
-    buildColumnSearchNumberString(val) {
-        const data = this.parseStringValue(val);
-        if (data) {
-            const values = (0, lodash_1.filter)((0, lodash_1.map)(data.values, value => parseFloat(value)), value => !isNaN(value));
-            if (values.length)
-                return this.buildCompare(data.op, values[0], values[1]);
-        }
+    getNumberStringValues(val) {
+        return val
+            .split(';')
+            .map(v => parseFloat(v))
+            .filter(v => !isNaN(v.valueOf()));
     }
     buildColumnSearchDate(options, column, search, global = false) {
         this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
         const values = global ? search.chunks : (0, lodash_1.isArray)(search.value) ? search.value : [search.value];
         const s = [];
         (0, lodash_1.each)(values, val => {
-            let compare;
-            if (typeof val === 'string') {
-                compare = this.buildColumnSearchDateString(val);
-            }
-            else if (typeof val === 'number') {
-                compare = this.buildCompare(search.operator, new Date(val));
-            }
-            else if (Array.isArray(val)) {
-                compare = this.buildCompare(search.operator, new Date(val[0]), new Date(val[1]));
-            }
+            const values = [];
+            if (typeof val === 'string')
+                values.push(...this.getDateStringValues(val));
+            else if (typeof val === 'number')
+                values.push(new Date(val));
+            else if (val instanceof Date)
+                values.push(val);
             else if (val?.from || val?.to) {
-                const op = val.op || search.operator || '>=<';
                 const from = val?.from ? new Date(val.from) : undefined;
+                if (from && !isNaN(from.valueOf()))
+                    values.push(from);
                 const to = val?.to ? new Date(val.to) : undefined;
-                compare = this.buildCompare(op, from, to);
+                if (to && !isNaN(to.valueOf()))
+                    values.push(to);
             }
-            if (compare)
-                s.push({ [column.data]: compare });
+            if (values.length)
+                s.push(this.buildCompare(column.data, search.operator, values));
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
     }
-    buildColumnSearchDateString(val) {
-        const data = this.parseStringValue(val);
-        console.log(val, data);
-        if (data) {
-            const values = (0, lodash_1.filter)((0, lodash_1.map)(data.values, value => new Date(value)), value => !isNaN(value.valueOf()));
-            console.log(values);
-            if (values.length)
-                return this.buildCompare(data.op, values[0], values[1]);
-        }
+    getDateStringValues(val) {
+        return val
+            .split(';')
+            .map(v => new Date(v))
+            .filter(v => !isNaN(v.valueOf()));
     }
     buildColumnSearchObjectId(options, column, search, global = false) {
         if (global)

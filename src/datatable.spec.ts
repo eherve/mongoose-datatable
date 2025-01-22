@@ -205,7 +205,7 @@ const posGt2Query: IQuery = {
     { data: 'first_name', searchable: true, orderable: true, search: { value: null, regex: false } },
     { data: 'last_name', searchable: false, orderable: true, search: { value: null, regex: false } },
     { data: 'activated', searchable: true, orderable: true, search: { value: null, regex: false } },
-    { data: 'position', searchable: true, orderable: true, search: { value: '>2', regex: false } },
+    { data: 'position', searchable: true, orderable: true, search: { operator: '>', value: '2', regex: false } },
     { data: 'start_date', searchable: true, orderable: false, search: { value: null, regex: false } },
     { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
@@ -227,7 +227,7 @@ const dateStringQuery: IQuery = {
 
       searchable: true,
       orderable: false,
-      search: { value: `<=>2019-01-02,${new Date('2019-01-04')}`, regex: false },
+      search: { operator: '≤≥', value: { from: new Date('2019-01-02'), to: new Date('2019-01-04') }, regex: false },
     },
     { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
@@ -246,10 +246,9 @@ const dateQuery: IQuery = {
     { data: 'position', searchable: true, orderable: true, search: { value: null, regex: false } },
     {
       data: 'start_date',
-
       searchable: true,
       orderable: false,
-      search: { value: { from: '2019-01-02', to: new Date('2019.01.04'), op: '>=<' } },
+      search: { value: new Date('2019-01-02') },
     },
     { data: 'sub_schema.code', searchable: true, orderable: false, search: { value: null, regex: false } },
   ],
@@ -460,17 +459,12 @@ describe('Datatable Module', () => {
       });
     });
 
-    it('should find entries with start_date object between 2019-01-02 and 2019-01-04', async () => {
+    it('should find entries with start_date object equals to 2019-01-02', async () => {
       return model.dataTable(dateQuery).then((data: any) => {
         expect(data).to.not.be.null;
         expect(data.draw).to.be.equals('2');
-        const start = new Date('2019-01-02').getTime();
-        const end = new Date('2019-01-04').getTime();
-        expect(data.data).to.have.lengthOf(
-          records.filter((d: any) => d.start_date.getTime() >= start && d.start_date.getTime() < end).length
-        );
+        expect(data.data).to.have.lengthOf(1);
         expect((data.data[0].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-02').toDateString());
-        expect((data.data[1].start_date as Date).toDateString()).to.be.equals(new Date('2019-01-03').toDateString());
       });
     });
 

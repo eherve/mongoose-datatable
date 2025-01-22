@@ -16,7 +16,7 @@ interface IOrder {
     column: number;
     dir: string;
 }
-export type SearchOperator = '>' | '>=' | '≥' | '<' | '<=' | '≤' | '<>' | '<=>' | '≤≥' | '><=' | '>=<';
+export type SearchOperator = '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤';
 export interface ISearch {
     value: any;
     regex?: boolean;
@@ -85,11 +85,10 @@ export declare class DataTableModule {
     private buildColumnSearchString;
     private buildColumnSearchBoolean;
     private buildCompare;
-    private parseStringValue;
     private buildColumnSearchNumber;
-    private buildColumnSearchNumberString;
+    private getNumberStringValues;
     private buildColumnSearchDate;
-    private buildColumnSearchDateString;
+    private getDateStringValues;
     private buildColumnSearchObjectId;
     private pagination;
     private parseNumber;
