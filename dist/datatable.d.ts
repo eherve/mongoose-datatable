@@ -16,9 +16,11 @@ interface IOrder {
     column: number;
     dir: string;
 }
+export type SearchOperator = '>' | '>=' | '≥' | '<' | '<=' | '≤' | '<>' | '<=>' | '≤≥' | '><=' | '>=<';
 export interface ISearch {
     value: any;
     regex?: boolean;
+    operator?: SearchOperator;
     chunks?: string[];
 }
 export interface IQuery {
@@ -83,8 +85,11 @@ export declare class DataTableModule {
     private buildColumnSearchString;
     private buildColumnSearchBoolean;
     private buildCompare;
+    private parseStringValue;
     private buildColumnSearchNumber;
+    private buildColumnSearchNumberString;
     private buildColumnSearchDate;
+    private buildColumnSearchDateString;
     private buildColumnSearchObjectId;
     private pagination;
     private parseNumber;

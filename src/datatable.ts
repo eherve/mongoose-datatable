@@ -1,8 +1,8 @@
 /** @format */
 
 import * as flat from 'flat';
-import {assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, set, trim} from 'lodash';
-import {Model, Schema, SchemaType, Types} from 'mongoose';
+import { assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, set, trim } from 'lodash';
+import { Model, Schema, SchemaType, Types } from 'mongoose';
 import * as util from 'util';
 
 interface IFetchFieldData {
@@ -38,10 +38,12 @@ interface IOrder {
   column: number;
   dir: string;
 }
-
+export type SearchOperator = '>' | '>=' | '≥' | '<' | '<=' | '≤' | '<>' | '<=>' | '≤≥' | '><=' | '>=<';
+const SearchOperator: SearchOperator[] = ['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'];
 export interface ISearch {
   value: any;
   regex?: boolean;
+  operator?: SearchOperator;
   chunks?: string[];
 }
 
@@ -104,7 +106,7 @@ export type HandlerType = (query: IQuery, column: IColumn, field: any, search: I
 
 export interface IOptions {
   logger?: ILogger;
-  handlers?: {[type: string]: HandlerType};
+  handlers?: { [type: string]: HandlerType };
   conditions?: any;
   select?: any;
   disableCount?: boolean;
@@ -121,7 +123,7 @@ export interface IData {
 
 export interface IConfig {
   logger?: ILogger;
-  handlers?: {[type: string]: HandlerType};
+  handlers?: { [type: string]: HandlerType };
   processUnknownFields?: boolean;
 }
 
@@ -164,7 +166,7 @@ export class DataTableModule {
   constructor(private schema: Schema) {}
 
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
-    this.debug(options.logger, 'quey:', util.inspect(query, {depth: null}));
+    this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
     const aggregate: IAggregateOptions = {
       projection: null,
       populate: [],
@@ -266,7 +268,7 @@ export class DataTableModule {
         },
       });
       data.populate.push({
-        $unwind: {path: `$${data.base}`, preserveNullAndEmptyArrays: true},
+        $unwind: { path: `$${data.base}`, preserveNullAndEmptyArrays: true },
       });
     }
   }
@@ -335,7 +337,7 @@ export class DataTableModule {
       this.warn(options.logger, `field path ${column.data} refered model ${data.field?.options?.ref} not found !`);
     } else this.warn(options.logger, `field path ${column.data} not found !`);
     if (!options.processUnknownFields) return;
-    return {field: {path: column.data}, populated: false};
+    return { field: { path: column.data }, populated: false };
   }
 
   private fetchField(
@@ -343,10 +345,10 @@ export class DataTableModule {
     query: IQuery,
     column: IColumn,
     populate: PopulateType
-  ): {field: any; populated: boolean} {
+  ): { field: any; populated: boolean } {
     let populated = false;
     let field: any = this.schema.path(column.data);
-    if (field) return {field, populated};
+    if (field) return { field, populated };
     const data: IFetchFieldData = {
       populate,
       populated,
@@ -428,7 +430,7 @@ export class DataTableModule {
     if (!data.field) {
       this.warn(options.logger, `field path ${column.data} not found !`);
     }
-    return {field: data.field, populated: data.populated};
+    return { field: data.field, populated: data.populated };
   }
 
   private getField(schema: any, path: string): SchemaType {
@@ -467,12 +469,12 @@ export class DataTableModule {
   private addSearch(csearch: any[], search: any[] = [], conditions?: any): any {
     let asearch: any;
     if (conditions || search.length || csearch.length) {
-      asearch = {$and: []};
+      asearch = { $and: [] };
       if (conditions) {
         asearch.$and.push(conditions);
       }
       if (search.length) {
-        asearch.$and.push({$or: search});
+        asearch.$and.push({ $or: search });
       }
       if (csearch.length) {
         asearch.$and = asearch.$and.concat(csearch);
@@ -481,7 +483,7 @@ export class DataTableModule {
     return asearch;
   }
 
-  private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): {search: any[]; csearch: any[]} {
+  private getSearch(options: IOptions, query: IQuery, column: IColumn, field: any): { search: any[]; csearch: any[] } {
     const search = [],
       csearch = [];
     if (query.search && query.search.value !== undefined && query.search.value !== '') {
@@ -496,7 +498,7 @@ export class DataTableModule {
         csearch.push(s);
       }
     }
-    return {search, csearch};
+    return { search, csearch };
   }
 
   private getChunkSearch(search: string): string[] {
@@ -590,10 +592,10 @@ export class DataTableModule {
     this.debug(options.logger, 'buildColumnSearchString:', column.data, search);
     const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
     const s: any[] = map(values, val => {
-      if (typeof val === 'string' && search.regex) return {[column.data]: new RegExp(`${val}`, 'gi')};
-      return {[column.data]: val};
+      if (typeof val === 'string' && search.regex) return { [column.data]: new RegExp(`${val}`, 'gi') };
+      return { [column.data]: val };
     });
-    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
   }
 
   private buildColumnSearchBoolean(options: IOptions, column: IColumn, search: ISearch, global = false): any {
@@ -602,35 +604,48 @@ export class DataTableModule {
     if (['string', 'boolean'].includes(typeof search.value)) {
       const value = typeof search.value === 'boolean' ? search.value : lowerCase(trim(search.value));
       if (value === 'true' || value === true) {
-        return {[column.data]: true};
+        return { [column.data]: true };
       } else if (value === 'false' || value === false) {
-        return {[column.data]: false};
+        return { [column.data]: false };
       }
     }
     this.warn(options.logger, `buildColumnSearchBoolean unmanaged search value '${search.value}'`);
   }
 
-  private buildCompare(op: string, from: any, to: any) {
+  private buildCompare(op: SearchOperator, value1: any, value2?: any) {
     switch (op) {
       case '>':
-        return {$gt: from};
+        return { $gt: value1 };
       case '>=':
-        return {$gte: from};
+      case '≥':
+        return { $gte: value1 };
       case '<':
-        return {$lt: from};
+        return { $lt: value1 };
       case '<=':
-        return {$lte: from};
+      case '≤':
+        return { $lte: value1 };
       case '<>':
-        return {$gt: from, $lt: to};
+        return { $gt: value1, $lt: value2 };
       case '<=>':
-        return {$gte: from, $lte: to};
+      case '≤≥':
+        return { $gte: value1, $lte: value2 };
       case '><=':
-        return {$gt: from, $lte: to};
+        return { $gt: value1, $lte: value2 };
       case '>=<':
-        return {$gte: from, $lt: to};
+        return { $gte: value1, $lt: value2 };
       default:
-        return from;
+        return value1;
     }
+  }
+
+  private parseStringValue(val: string, kind: 'number' | 'date'): { op: SearchOperator; values: string[] } | null {
+    let valueTmpl = kind === 'number' ? '[0-9.,]+' : '[0-9.\\-,/]+';
+    const regexp = new RegExp(`^(${SearchOperator.join('|')})?(${valueTmpl})$`);
+    const match = val.match(regexp);
+    if (match) {
+      return { op: match.at(1) as SearchOperator, values: match.at(2)?.split(',') };
+    }
+    return null;
   }
 
   private buildColumnSearchNumber(options: IOptions, column: IColumn, search: ISearch, global = false): any {
@@ -638,19 +653,26 @@ export class DataTableModule {
     const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
     const s: any[] = [];
     each(values, val => {
+      let compare: any;
       if (typeof val === 'string') {
-        const match = val.match(/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/);
-        if (match) {
-          const op = match.at(1);
-          const from = new Number(match.at(2));
-          const to = new Number(match.at(3));
-          return s.push({[column.data]: this.buildCompare(op, from.valueOf(), to.valueOf())});
-        }
-        return this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${val}'`);
+        compare = this.buildColumnSearchNumberString(val);
+      } else if (typeof val === 'number') {
+        compare = this.buildCompare(search.operator, val);
       }
-      return s.push({[column.data]: val});
+      if (compare) s.push({ [column.data]: compare });
     });
-    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+  }
+
+  private buildColumnSearchNumberString(val: string): any {
+    const data = this.parseStringValue(val, 'number');
+    if (data) {
+      return this.buildCompare(
+        data.op,
+        !isNil(data.values[0]) ? parseFloat(data.values[0]) : undefined,
+        !isNil(data.values[1]) ? parseFloat(data.values[1]).valueOf() : undefined
+      );
+    }
   }
 
   private buildColumnSearchDate(options: IOptions, column: IColumn, search: ISearch, global = false): any {
@@ -658,34 +680,33 @@ export class DataTableModule {
     const values = global ? search.chunks : isArray(search.value) ? search.value : [search.value];
     const s: any[] = [];
     each(values, val => {
-      let op: string, from: Date, to: Date;
+      let compare: any;
       if (typeof val === 'string') {
-        const match = val.match(/^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/);
-        if (!match) return this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
-        op = match.at(1);
-        const $2 = match.at(2);
-        from = isNaN($2 as any) ? new Date($2) : new Date(parseInt($2));
-        if (!(from instanceof Date) || isNaN(from.valueOf())) {
-          return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}'`);
-        }
-        const $3 = match.at(3);
-        to = isNaN($3 as any) ? new Date($3) : new Date(parseInt($3));
-        if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-          return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}'`);
-        }
-        return s.push({[column.data]: this.buildCompare(op, from, to)});
+        compare = this.buildColumnSearchDateString(val);
+      } else if (typeof val === 'number') {
+        compare = this.buildCompare(search.operator, new Date(val));
+      } else if (Array.isArray(val)) {
+        compare = this.buildCompare(search.operator, new Date(val[0]), new Date(val[1]));
+      } else if (val?.from || val?.to) {
+        const op: SearchOperator = val.op || search.operator || '>=<';
+        const from = val?.from ? new Date(val.from) : undefined;
+        const to = val?.to ? new Date(val.to) : undefined;
+        compare = this.buildCompare(op, from, to);
       }
-      if (val?.from || val?.to) {
-        op = val.op || '>=<';
-        const fromDate = val?.from ? new Date(val.from) : null;
-        if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf())) from = fromDate;
-        const toDate = val?.to ? new Date(val.to) : null;
-        if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf())) to = toDate;
-        return s.push({[column.data]: this.buildCompare(op, from, to)});
-      }
-      return this.warn(options.logger, `buildColumnSearchDate invalid value '${val}'`);
+      if (compare) s.push({ [column.data]: compare });
     });
-    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+  }
+
+  private buildColumnSearchDateString(val: string): { op: string; from: Date; to: Date } | void {
+    const data = this.parseStringValue(val, 'date');
+    if (data) {
+      return this.buildCompare(
+        data.op,
+        !isNil(data.values[0]) ? new Date(data.values[0]) : undefined,
+        !isNil(data.values[1]) ? new Date(data.values[1]) : undefined
+      );
+    }
   }
 
   private buildColumnSearchObjectId(options: IOptions, column: IColumn, search: ISearch, global = false): any {
@@ -694,10 +715,10 @@ export class DataTableModule {
     const values = isArray(search.value) ? search.value : [search.value];
     const s: any[] = [];
     each(values, val => {
-      if (Types.ObjectId.isValid(val)) return s.push({[column.data]: new Types.ObjectId(val)});
+      if (Types.ObjectId.isValid(val)) return s.push({ [column.data]: new Types.ObjectId(val) });
       this.warn(options.logger, `buildColumnSearchObjectId unmanaged search value '${search.value}'`);
     });
-    return s.length > 0 ? (s.length > 1 ? {$or: s} : s[0]) : null;
+    return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
   }
 
   private pagination(query: IQuery): IPagination {
@@ -731,11 +752,11 @@ export class DataTableModule {
   private async recordsTotal(options: IOptions): Promise<number> {
     if (!!options.unwind?.length) {
       const aggregate = [];
-      options.unwind.forEach($unwind => aggregate.push({$unwind}));
-      aggregate.push({$match: options.conditions});
+      options.unwind.forEach($unwind => aggregate.push({ $unwind }));
+      aggregate.push({ $match: options.conditions });
       // aggregate.push({ $group: { _id: null, count: { $sum: 1 } } });
       // return get(head(await this.model.aggregate(aggregate)), 'count');
-      aggregate.push({$count: 'count'});
+      aggregate.push({ $count: 'count' });
       return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
     }
     return this.model.countDocuments(options.conditions);
@@ -750,32 +771,32 @@ export class DataTableModule {
       return Promise.resolve(recordsTotal);
     }
     const aggregate: any[] = [];
-    (options.unwind || []).forEach($unwind => aggregate.push({$unwind}));
-    if (aggregateOptions.search) aggregate.push({$match: aggregateOptions.search});
+    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
+    if (aggregateOptions.search) aggregate.push({ $match: aggregateOptions.search });
     aggregateOptions.populate.forEach(data => aggregate.push(data));
-    if (aggregateOptions.afterPopulateSearch) aggregate.push({$match: aggregateOptions.afterPopulateSearch});
-    aggregate.push({$count: 'count'});
+    if (aggregateOptions.afterPopulateSearch) aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
+    aggregate.push({ $count: 'count' });
     return this.model.aggregate(aggregate).then(data => (data.length === 1 ? data[0].count : 0));
   }
 
   private async data(options: IOptions, aggregateOptions: IAggregateOptions): Promise<any[]> {
     const aggregate: any[] = [];
-    (options.unwind || []).forEach($unwind => aggregate.push({$unwind}));
+    (options.unwind || []).forEach($unwind => aggregate.push({ $unwind }));
     if (aggregateOptions.search) {
-      aggregate.push({$match: aggregateOptions.search});
+      aggregate.push({ $match: aggregateOptions.search });
     }
     aggregateOptions.populate.forEach(data => aggregate.push(data));
     if (aggregateOptions.afterPopulateSearch) {
-      aggregate.push({$match: aggregateOptions.afterPopulateSearch});
+      aggregate.push({ $match: aggregateOptions.afterPopulateSearch });
     }
     if (aggregateOptions.projection) {
-      aggregate.push({$project: aggregateOptions.projection});
+      aggregate.push({ $project: aggregateOptions.projection });
     }
     if (aggregateOptions.groupBy) {
       this.buildGroupBy(aggregateOptions).forEach(gb => aggregate.push(gb));
     }
     if (aggregateOptions.sort) {
-      aggregate.push({$sort: aggregateOptions.sort});
+      aggregate.push({ $sort: aggregateOptions.sort });
     }
     if (aggregateOptions.pagination) {
       if (aggregateOptions.pagination.start) {
@@ -784,10 +805,10 @@ export class DataTableModule {
         });
       }
       if (aggregateOptions.pagination.length) {
-        aggregate.push({$limit: aggregateOptions.pagination.length});
+        aggregate.push({ $limit: aggregateOptions.pagination.length });
       }
     }
-    this.debug(options.logger, util.inspect(aggregate, {depth: null}));
+    this.debug(options.logger, util.inspect(aggregate, { depth: null }));
     return this.model.aggregate(aggregate).allowDiskUse(true);
   }
 
@@ -797,11 +818,11 @@ export class DataTableModule {
     let id: any[] = [];
     aggregateOptions.groupBy.forEach((gb, i) => {
       set(_id, gb, `$${gb}`);
-      id = id.concat({$toString: `$_id.${gb}`});
+      id = id.concat({ $toString: `$_id.${gb}` });
       const groupBy: any = {};
       if (i < aggregateOptions.groupBy.length - 1) {
         groupBy[`gb${i}`] = {
-          id: {$concat: id},
+          id: { $concat: id },
           count: '$groupByCount',
           field: gb,
           value: `$_id.${gb}`,
@@ -812,7 +833,7 @@ export class DataTableModule {
           groupBy.groupBy.push(`$data.gb${i}`);
         }
         groupBy.groupBy.push({
-          id: {$concat: id},
+          id: { $concat: id },
           count: '$groupByCount',
           field: gb,
           value: `$_id.${gb}`,
@@ -821,13 +842,13 @@ export class DataTableModule {
       aggregate.push({
         $group: {
           _id: clone(_id),
-          groupByCount: {$sum: 1},
-          data: {$push: '$$ROOT'},
+          groupByCount: { $sum: 1 },
+          data: { $push: '$$ROOT' },
         },
       });
-      aggregate.push({$unwind: '$data'});
+      aggregate.push({ $unwind: '$data' });
       aggregate.push({
-        $replaceRoot: {newRoot: {$mergeObjects: ['$data', groupBy]}},
+        $replaceRoot: { newRoot: { $mergeObjects: ['$data', groupBy] } },
       });
     });
     return aggregate;

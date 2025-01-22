@@ -6,6 +6,7 @@ const flat = require("flat");
 const lodash_1 = require("lodash");
 const mongoose_1 = require("mongoose");
 const util = require("util");
+const SearchOperator = ['>', '>=', '≥', '<', '<=', '≤', '<>', '<=>', '≤≥', '><=', '>=<'];
 class DataTableModule {
     get config() {
         return this._config;
@@ -431,83 +432,94 @@ class DataTableModule {
         }
         this.warn(options.logger, `buildColumnSearchBoolean unmanaged search value '${search.value}'`);
     }
-    buildCompare(op, from, to) {
+    buildCompare(op, value1, value2) {
         switch (op) {
             case '>':
-                return { $gt: from };
+                return { $gt: value1 };
             case '>=':
-                return { $gte: from };
+            case '≥':
+                return { $gte: value1 };
             case '<':
-                return { $lt: from };
+                return { $lt: value1 };
             case '<=':
-                return { $lte: from };
+            case '≤':
+                return { $lte: value1 };
             case '<>':
-                return { $gt: from, $lt: to };
+                return { $gt: value1, $lt: value2 };
             case '<=>':
-                return { $gte: from, $lte: to };
+            case '≤≥':
+                return { $gte: value1, $lte: value2 };
             case '><=':
-                return { $gt: from, $lte: to };
+                return { $gt: value1, $lte: value2 };
             case '>=<':
-                return { $gte: from, $lt: to };
+                return { $gte: value1, $lt: value2 };
             default:
-                return from;
+                return value1;
         }
+    }
+    parseStringValue(val, kind) {
+        let valueTmpl = kind === 'number' ? '[0-9.,]+' : '[0-9.\\-,/]+';
+        const regexp = new RegExp(`^(${SearchOperator.join('|')})?(${valueTmpl})$`);
+        const match = val.match(regexp);
+        if (match) {
+            return { op: match.at(1), values: match.at(2)?.split(',') };
+        }
+        return null;
     }
     buildColumnSearchNumber(options, column, search, global = false) {
         this.debug(options.logger, 'buildColumnSearchNumber:', column.data, search);
         const values = global ? search.chunks : (0, lodash_1.isArray)(search.value) ? search.value : [search.value];
         const s = [];
         (0, lodash_1.each)(values, val => {
+            let compare;
             if (typeof val === 'string') {
-                const match = val.match(/^(=|>|>=|<=|<|<>|<=>)?((?:[0-9]+[.])?[0-9]+)(?:,((?:[0-9]+[.])?[0-9]+))?$/);
-                if (match) {
-                    const op = match.at(1);
-                    const from = new Number(match.at(2));
-                    const to = new Number(match.at(3));
-                    return s.push({ [column.data]: this.buildCompare(op, from.valueOf(), to.valueOf()) });
-                }
-                return this.warn(options.logger, `buildColumnSearchNumber unmanaged search value '${val}'`);
+                compare = this.buildColumnSearchNumberString(val);
             }
-            return s.push({ [column.data]: val });
+            else if (typeof val === 'number') {
+                compare = this.buildCompare(search.operator, val);
+            }
+            if (compare)
+                s.push({ [column.data]: compare });
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+    }
+    buildColumnSearchNumberString(val) {
+        const data = this.parseStringValue(val, 'number');
+        if (data) {
+            return this.buildCompare(data.op, !(0, lodash_1.isNil)(data.values[0]) ? parseFloat(data.values[0]) : undefined, !(0, lodash_1.isNil)(data.values[1]) ? parseFloat(data.values[1]).valueOf() : undefined);
+        }
     }
     buildColumnSearchDate(options, column, search, global = false) {
         this.debug(options.logger, 'buildColumnSearchDate:', column.data, search);
         const values = global ? search.chunks : (0, lodash_1.isArray)(search.value) ? search.value : [search.value];
         const s = [];
         (0, lodash_1.each)(values, val => {
-            let op, from, to;
+            let compare;
             if (typeof val === 'string') {
-                const match = val.match(/^(=|>|>=|<=|<|<>|<=>|><=|>=<)?([0-9.\/-]+)(?:,([0-9.\/-]+))?$/);
-                if (!match)
-                    return this.warn(options.logger, `buildColumnSearchDate unmanaged search value '${search.value}'`);
-                op = match.at(1);
-                const $2 = match.at(2);
-                from = isNaN($2) ? new Date($2) : new Date(parseInt($2));
-                if (!(from instanceof Date) || isNaN(from.valueOf())) {
-                    return this.warn(options.logger, `buildColumnSearchDate invalid 'from' date format [YYYY/MM/DD] '${$2}'`);
-                }
-                const $3 = match.at(3);
-                to = isNaN($3) ? new Date($3) : new Date(parseInt($3));
-                if ($3 !== '' && (!(to instanceof Date) || isNaN(to.valueOf()))) {
-                    return this.warn(options.logger, `buildColumnSearchDate invalid 'to' date format [YYYY/MM/DD] '${$3}'`);
-                }
-                return s.push({ [column.data]: this.buildCompare(op, from, to) });
+                compare = this.buildColumnSearchDateString(val);
             }
-            if (val?.from || val?.to) {
-                op = val.op || '>=<';
-                const fromDate = val?.from ? new Date(val.from) : null;
-                if (fromDate && fromDate instanceof Date && !isNaN(fromDate.valueOf()))
-                    from = fromDate;
-                const toDate = val?.to ? new Date(val.to) : null;
-                if (toDate && toDate instanceof Date && !isNaN(toDate.valueOf()))
-                    to = toDate;
-                return s.push({ [column.data]: this.buildCompare(op, from, to) });
+            else if (typeof val === 'number') {
+                compare = this.buildCompare(search.operator, new Date(val));
             }
-            return this.warn(options.logger, `buildColumnSearchDate invalid value '${val}'`);
+            else if (Array.isArray(val)) {
+                compare = this.buildCompare(search.operator, new Date(val[0]), new Date(val[1]));
+            }
+            else if (val?.from || val?.to) {
+                const op = val.op || search.operator || '>=<';
+                const from = val?.from ? new Date(val.from) : undefined;
+                const to = val?.to ? new Date(val.to) : undefined;
+                compare = this.buildCompare(op, from, to);
+            }
+            if (compare)
+                s.push({ [column.data]: compare });
         });
         return s.length > 0 ? (s.length > 1 ? { $or: s } : s[0]) : null;
+    }
+    buildColumnSearchDateString(val) {
+        const data = this.parseStringValue(val, 'date');
+        if (data) {
+            return this.buildCompare(data.op, !(0, lodash_1.isNil)(data.values[0]) ? new Date(data.values[0]) : undefined, !(0, lodash_1.isNil)(data.values[1]) ? new Date(data.values[1]) : undefined);
+        }
     }
     buildColumnSearchObjectId(options, column, search, global = false) {
         if (global)
