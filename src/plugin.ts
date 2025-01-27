@@ -81,7 +81,7 @@ async function buildPipeline(
   query: DatatableQuery,
   options: DatatableOptions | undefined
 ): Promise<PipelineStage.FacetPipelineStage[]> {
-  const project: PipelineStage.Project = { $project: getOptionsProject(options) };
+  const project: any = getOptionsProject(options);
   const $or: FilterQuery<any>[] = [];
   const $and: FilterQuery<any>[] = [];
   const lookups: PipelineStage.FacetPipelineStage[] = [];
@@ -90,7 +90,7 @@ async function buildPipeline(
   query.columns.forEach(column => {
     const path = column.data.trim();
     if (!path.length) return;
-    project.$project[path] = 1;
+    project[path] = 1;
     const fields = getSchemaFieldInfo(model, path, options);
     const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
     $or.push(...globalFilter);
@@ -140,9 +140,21 @@ async function buildPipeline(
   if ($and.length) pipeline.push({ $match: { $and } });
   pipeline.push(...lookups);
   if ($or.length) pipeline.push({ $match: { $or } });
-  pipeline.push(project);
+  pipeline.push({ $project: consolidateProject(project) });
 
   return pipeline;
+}
+
+function consolidateProject(project: any): any {
+  const consolidated = {};
+  Object.keys(project)
+    .sort((p1, p2) => p1.length - p2.length)
+    .forEach(key => {
+      if (!Object.keys(consolidated).find(k => key.startsWith(k))) {
+        consolidated[key] = project[key];
+      }
+    });
+  return consolidated;
 }
 
 function getOptionsProject(options: DatatableOptions | undefined): { [field: string]: any } {

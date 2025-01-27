@@ -28,7 +28,7 @@ async function datatable(query, options) {
     if (pagination?.length)
         dataPipeline.push({ $limit: pagination.length });
     options?.logger?.debug((0, util_1.inspect)(dataPipeline, false, null, true));
-    const res = await this.aggregate([
+    const aggregation = [
         {
             $facet: {
                 recordsTotal: recordsTotalPipeline,
@@ -43,7 +43,12 @@ async function datatable(query, options) {
                 data: '$data',
             },
         },
-    ]);
+    ];
+    if (options?.unwind?.length)
+        aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
+    if (options?.conditions)
+        aggregation.splice(0, 0, { $match: options.conditions });
+    const res = await this.aggregate(aggregation);
     return {
         draw: query.draw,
         recordsTotal: res ? res[0].recordsTotal : 0,
@@ -52,7 +57,7 @@ async function datatable(query, options) {
     };
 }
 async function buildPipeline(model, query, options) {
-    const project = { $project: {} };
+    const project = getOptionsProject(options);
     const $or = [];
     const $and = [];
     const lookups = [];
@@ -61,7 +66,7 @@ async function buildPipeline(model, query, options) {
         const path = column.data.trim();
         if (!path.length)
             return;
-        project.$project[path] = 1;
+        project[path] = 1;
         const fields = getSchemaFieldInfo(model, path, options);
         const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
         $or.push(...globalFilter);
@@ -108,8 +113,28 @@ async function buildPipeline(model, query, options) {
     pipeline.push(...lookups);
     if ($or.length)
         pipeline.push({ $match: { $or } });
-    pipeline.push(project);
+    pipeline.push({ $project: consolidateProject(project) });
     return pipeline;
+}
+function consolidateProject(project) {
+    const consolidated = {};
+    Object.keys(project)
+        .sort((p1, p2) => p1.length - p2.length)
+        .forEach(key => {
+        if (!Object.keys(consolidated).find(k => key.startsWith(k))) {
+            consolidated[key] = project[key];
+        }
+    });
+    return consolidated;
+}
+function getOptionsProject(options) {
+    if (!options?.select)
+        return {};
+    return typeof options.select === 'string'
+        ? options.select.split(' ').reduce((p, c) => ((p[c] = 1), p), {})
+        : Array.isArray(options.select)
+            ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
+            : options.select;
 }
 function getSearch(column, search, field) {
     if (column.searchable === false)
