@@ -13,6 +13,7 @@ export type DatatableSchemaOptions = {
 export type DatatableOptions = DatatableSchemaOptions & {
   conditions?: FilterQuery<any>;
   unwind?: (string | { path: string; includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean })[];
+  select?: string | string[] | {[key:string]: any}
 };
 
 export type DatatableData = {

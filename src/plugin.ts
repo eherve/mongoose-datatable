@@ -81,7 +81,7 @@ async function buildPipeline(
   query: DatatableQuery,
   options: DatatableOptions | undefined
 ): Promise<PipelineStage.FacetPipelineStage[]> {
-  const project: PipelineStage.Project = { $project: {} };
+  const project: PipelineStage.Project = { $project: getOptionsProject(options) };
   const $or: FilterQuery<any>[] = [];
   const $and: FilterQuery<any>[] = [];
   const lookups: PipelineStage.FacetPipelineStage[] = [];
@@ -143,6 +143,15 @@ async function buildPipeline(
   pipeline.push(project);
 
   return pipeline;
+}
+
+function getOptionsProject(options: DatatableOptions | undefined): { [field: string]: any } {
+  if (!options?.select) return {};
+  return typeof options.select === 'string'
+    ? options.select.split(' ').reduce((p: any, c: string) => ((p[c] = 1), p), {})
+    : Array.isArray(options.select)
+    ? options.select.reduce((p: any, c: string) => ((p[c] = 1), p), {})
+    : options.select;
 }
 
 function getSearch(column: DatatableQueryColumn, search?: DatatableQuerySearch, field?: FieldInfo): FilterQuery<any>[] {
