@@ -1,3 +1,4 @@
+/** @format */
 export type DatatableLogger = {
     debug: (...args: any) => any;
     warn: (...args: any) => any;

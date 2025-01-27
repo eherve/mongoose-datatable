@@ -9,7 +9,7 @@ import {
   DatatableQuerySearch,
   DatatableQuerySearchOperator,
 } from './query.type.js';
-import lodash from 'lodash';
+import * as lodash from 'lodash';
 
 type FieldInfo = {
   path: string;

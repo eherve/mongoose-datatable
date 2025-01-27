@@ -1,3 +1,4 @@
+/** @format */
 export type DatatableQuerySearchOperator = '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤' | '$in' | '$nin';
 export type DatatableQuerySearch = {
     value: any;
