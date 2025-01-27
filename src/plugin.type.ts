@@ -1,5 +1,7 @@
 /** @format */
 
+import { FilterQuery, PipelineStage } from 'mongoose';
+
 export type DatatableLogger = {
   debug: (...args: any) => any;
   warn: (...args: any) => any;
@@ -8,7 +10,10 @@ export type DatatableLogger = {
 export type DatatableSchemaOptions = {
   logger?: DatatableLogger;
 };
-export type DatatableOptions = DatatableSchemaOptions & {};
+export type DatatableOptions = DatatableSchemaOptions & {
+  conditions?: FilterQuery<any>;
+  unwind: (string | { path: string; includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean })[];
+};
 
 export type DatatableData = {
   draw: string;

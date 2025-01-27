@@ -47,7 +47,7 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
 
   options?.logger?.debug(inspect(dataPipeline, false, null, true));
 
-  const res: { recordsTotal: number; recordsFiltered: number; data: any[] }[] = await this.aggregate([
+  const aggregation: PipelineStage[] = [
     {
       $facet: {
         recordsTotal: recordsTotalPipeline,
@@ -62,7 +62,11 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
         data: '$data',
       },
     },
-  ]);
+  ];
+  if (options?.unwind?.length) aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
+  if (options?.conditions) aggregation.splice(0, 0, { $match: options.conditions });
+
+  const res: { recordsTotal: number; recordsFiltered: number; data: any[] }[] = await this.aggregate(aggregation);
 
   return {
     draw: query.draw,
