@@ -1,18 +1,14 @@
 {
-  "compileOnSave": false,
+  "extends": "@tsconfig/node20/tsconfig.json",
   "compilerOptions": {
-    "noEmitOnError": true,
-    "sourceMap": true,
-    "allowSyntheticDefaultImports": true,
-    "declaration": false,
-    "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2020",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "outDir": "dist",
-    "typeRoots": ["./node_modules/@types"],
-    "noImplicitAny": false,
+    "allowSyntheticDefaultImports": true,
+    "strictPropertyInitialization": false,
+    "declaration": true,
+    "useDefineForClassFields": false,
+    "emitDecoratorMetadata": true,
+    "outDir": "./dist",
+    "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src/**.ts"],
   "exclude": ["node_modules", "src/**.spec.ts"]

@@ -1,9 +1,10 @@
 /** @format */
 
-import * as flat from 'flat';
-import { assign, clone, concat, each, isArray, isNil, lowerCase, map, merge, orderBy, set, trim } from 'lodash';
+import { unflatten } from 'flat';
+import lodash from 'lodash';
 import { Model, Schema, SchemaType, Types } from 'mongoose';
 import * as util from 'util';
+const { assign, clone, concat, each, get, isArray, isNil, lowerCase, map, merge, orderBy, set, trim } = lodash;
 
 interface IFetchFieldData {
   populate: PopulateType;
@@ -36,7 +37,7 @@ export interface IColumn {
 
 interface IOrder {
   column: number;
-  dir: string;
+  dir: 'asc' | 'desc';
 }
 export type SearchOperator = '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤';
 const SearchOperator: SearchOperator[] = orderBy(
@@ -84,15 +85,15 @@ type PopulateType = (ILookup | IUnwind)[];
 
 interface IPagination {
   start: number;
-  length: number;
+  length?: number;
 }
 
 interface IAggregateOptions {
   populate: PopulateType;
-  projection: IProjection;
+  projection?: IProjection;
   search?: any;
   afterPopulateSearch?: any;
-  sort: ISort;
+  sort?: ISort;
   pagination: IPagination;
   groupBy?: string[];
 }
@@ -134,7 +135,6 @@ export interface IConfig {
 
 export class DataTableModule {
   static CONFIG: IConfig = {
-    logger: null,
     handlers: {},
     processUnknownFields: true,
   };
@@ -173,7 +173,6 @@ export class DataTableModule {
   private dataTable(query: IQuery, options: IOptions = {} as IOptions): Promise<IData> {
     this.debug(options.logger, 'quey:', util.inspect(query, { depth: null }));
     const aggregate: IAggregateOptions = {
-      projection: null,
       populate: [],
       sort: this.buildSort(query),
       pagination: this.pagination(query),
@@ -196,10 +195,8 @@ export class DataTableModule {
     });
   }
 
-  private buildSort(query: IQuery): ISort {
-    if (!query.order || query.order.length === 0) {
-      return null;
-    }
+  private buildSort(query: IQuery): ISort | undefined {
+    if (!query.order || query.order.length === 0) return;
     const sort: ISort = {};
     query.order.forEach(order => {
       const column: IColumn = query.columns[order.column];
@@ -210,7 +207,8 @@ export class DataTableModule {
         sort[column.data] = order.dir === 'asc' ? 1 : -1;
       }
     });
-    return !!Object.keys(sort).length ? sort : null;
+
+    if (!!Object.keys(sort).length) return sort;
   }
 
   private updateAggregateOptions(options: IOptions, query: IQuery, aggregate: IAggregateOptions): void {
@@ -244,7 +242,7 @@ export class DataTableModule {
     aggregate.afterPopulateSearch = this.addSearch(psearch, search, options.conditions);
   }
 
-  private getModel(base: Model<any>, modelName: string): Model<any> {
+  private getModel(base: Model<any>, modelName: string): Model<any> | null {
     try {
       return base.db.model(modelName);
     } catch (err) {}
@@ -259,8 +257,10 @@ export class DataTableModule {
     field: any;
     base: string;
   }) {
+    const model = this.getModel(data.model, data.field.options.ref);
+    if (!model) return;
+    data.model = model;
     data.populated = true;
-    data.model = this.getModel(data.model, data.field.options.ref);
     if (!data.model) return;
     data.schema = data.model.schema;
     if (!data.populate.find((l: any) => l.$lookup && l.$lookup.localField === data.base)) {
@@ -288,12 +288,14 @@ export class DataTableModule {
     path: string;
     inArray: string;
   }) {
+    const model = this.getModel(data.model, data.field.options.ref);
+    if (!model) return;
+    data.model = model;
     data.populated = true;
-    data.model = this.getModel(data.model, data.field.options.ref);
     if (!data.model) return;
     data.schema = data.model.schema;
     if (!data.populate.find((l: any) => l.$lookup && l.$lookup.localField === data.base)) {
-      const refProperty = data.base.substr(data.inArray.length + 1);
+      const refProperty = data.base.substring(data.inArray.length + 1);
       const lookupProperty = `${data.inArray}__${refProperty}`;
       data.populate.push({
         $lookup: {
@@ -350,7 +352,7 @@ export class DataTableModule {
     query: IQuery,
     column: IColumn,
     populate: PopulateType
-  ): { field: any; populated: boolean } {
+  ): { field: any; populated: boolean } | undefined {
     let populated = false;
     let field: any = this.schema.path(column.data);
     if (field) return { field, populated };
@@ -380,7 +382,7 @@ export class DataTableModule {
 
       // ref field in array
       if (data.field.options && data.field.options.ref && !!data.inArray) {
-        this.addFieldArrayRef(data);
+        this.addFieldArrayRef(data as any);
         if (!data.model) return this.fieldNotFound(options, column, data);
         continue;
       }
@@ -393,14 +395,15 @@ export class DataTableModule {
         (data.field as any).caster.options.ref
       ) {
         data.populated = true;
-        data.model = this.getModel(data.model, (data.field as any).caster.options.ref);
-        if (!data.model) {
+        const model = this.getModel(data.model, (data.field as any).caster.options.ref);
+        if (!model) {
           this.warn(
             options.logger,
             `field path ${column.data} refered model ${(data.field as any).caster.options.ref} not found !`
           );
           return;
         }
+        data.model = model;
         data.schema = data.model.schema;
         if (!populate.find((l: any) => l.$lookup && l.$lookup.localField === data.base)) {
           populate.push({
@@ -438,7 +441,7 @@ export class DataTableModule {
     return { field: data.field, populated: data.populated };
   }
 
-  private getField(schema: any, path: string): SchemaType {
+  private getField(schema: any, path: string): SchemaType | undefined {
     var baseField: any,
       tail = path,
       base: string,
@@ -465,7 +468,7 @@ export class DataTableModule {
           : Array.isArray(options.select)
           ? options.select.reduce((p: any, c: string) => ((p[c] = 1), p), {})
           : options.select;
-      aggregate.projection = flat.unflatten(merge(select, projection || {}), {
+      aggregate.projection = unflatten(merge(select, projection || {}), {
         overwrite: true,
       });
     }
@@ -536,7 +539,7 @@ export class DataTableModule {
     if (options.handlers && options.handlers[instance]) {
       return options.handlers[instance](query, column, field, search, global);
     }
-    if (this.config.handlers[instance]) {
+    if (this.config.handlers && this.config.handlers[instance]) {
       return this.config.handlers[instance](query, column, field, search, global);
     }
     if (search.value === null) {
@@ -563,7 +566,7 @@ export class DataTableModule {
         if (options.handlers && options.handlers.default) {
           return options.handlers.default(query, column, field, search, global);
         }
-        if (this.config.handlers.default) {
+        if (this.config.handlers && this.config.handlers.default) {
           return this.config.handlers.default(query, column, field, search, global);
         }
         this.warn(options.logger, `buildColumnSearch column [${column.data}] type [${instance}] not managed !`);
@@ -616,7 +619,7 @@ export class DataTableModule {
     }
   }
 
-  private buildCompare(property: string, op: SearchOperator, values: any[]) {
+  private buildCompare(property: string, op: SearchOperator | undefined, values: any[]) {
     switch (op) {
       case '>':
         return { [property]: { $gt: values[0] } };
@@ -708,23 +711,23 @@ export class DataTableModule {
     const start = this.parseNumber(query.start, 0);
     const length = this.parseNumber(query.length, undefined);
     return {
-      start: isNaN(start) ? 0 : start,
-      length: isNaN(length) ? undefined : length,
+      start: isNil(start) || isNaN(start) ? 0 : start,
+      length: isNil(length) || isNaN(length) ? undefined : length,
     };
   }
 
-  private parseNumber(data: string | number, def?: number): number {
+  private parseNumber(data: string | number, def?: number): number | undefined {
     if (isNil(data)) return def;
     if (typeof data === 'string') return parseInt(data, 10);
     if (typeof data === 'number') return data;
     return def;
   }
 
-  private isTrue(data: string | boolean): boolean {
+  private isTrue(data?: string | boolean): boolean {
     return data === true || data === 'true';
   }
 
-  private isFalse(data: string | boolean): boolean {
+  private isFalse(data?: string | boolean): boolean {
     return data === false || data === 'false';
   }
 
@@ -784,7 +787,7 @@ export class DataTableModule {
     if (aggregateOptions.pagination) {
       if (aggregateOptions.pagination.start) {
         aggregate.push({
-          $skip: aggregateOptions.pagination.start * aggregateOptions.pagination.length,
+          $skip: aggregateOptions.pagination.start * get(aggregateOptions, 'pagination.length', 0),
         });
       }
       if (aggregateOptions.pagination.length) {
@@ -797,13 +800,14 @@ export class DataTableModule {
 
   private buildGroupBy(aggregateOptions: IAggregateOptions): any[] {
     const aggregate: any[] = [];
+    if (!aggregateOptions.groupBy) return aggregate;
     const _id: any = {};
     let id: any[] = [];
     aggregateOptions.groupBy.forEach((gb, i) => {
       set(_id, gb, `$${gb}`);
       id = id.concat({ $toString: `$_id.${gb}` });
       const groupBy: any = {};
-      if (i < aggregateOptions.groupBy.length - 1) {
+      if (i < aggregateOptions.groupBy!.length - 1) {
         groupBy[`gb${i}`] = {
           id: { $concat: id },
           count: '$groupByCount',
@@ -837,14 +841,14 @@ export class DataTableModule {
     return aggregate;
   }
 
-  private debug(logger: ILogger, ...args: any) {
+  private debug(logger?: ILogger, ...args: any) {
     const l = logger || this.logger;
     if (l && l.debug) {
       l.debug.apply(l, args);
     }
   }
 
-  private warn(logger: ILogger, ...args: any) {
+  private warn(logger?: ILogger, ...args: any) {
     const l = logger || this.logger;
     if (l && l.warn) {
       l.warn.apply(l, args);
