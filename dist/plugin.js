@@ -13,6 +13,7 @@ function datatablePlugin(schema, options) {
     };
 }
 async function datatable(query, options) {
+    options?.logger?.debug('query', (0, util_1.inspect)(query, false, null, false));
     const pipeline = await buildPipeline(this, query, options);
     const recordsTotalPipeline = [{ $group: { _id: null, value: { $sum: 1 } } }];
     const recordsFilteredPipeline = [
@@ -27,7 +28,6 @@ async function datatable(query, options) {
     dataPipeline.push({ $skip: pagination.start });
     if (pagination?.length)
         dataPipeline.push({ $limit: pagination.length });
-    options?.logger?.debug((0, util_1.inspect)(dataPipeline, false, null, true));
     const aggregation = [
         {
             $facet: {
@@ -48,6 +48,7 @@ async function datatable(query, options) {
         aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
     if (options?.conditions)
         aggregation.splice(0, 0, { $match: options.conditions });
+    options?.logger?.debug('aggregation', (0, util_1.inspect)(aggregation, false, null, false));
     const res = await this.aggregate(aggregation);
     return {
         draw: query.draw,
@@ -121,7 +122,7 @@ function consolidateProject(project) {
     Object.keys(project)
         .sort((p1, p2) => p1.length - p2.length)
         .forEach(key => {
-        if (!Object.keys(consolidated).find(k => key.startsWith(k))) {
+        if (!Object.keys(consolidated).find(k => key.startsWith(`${k}.`))) {
             consolidated[key] = project[key];
         }
     });

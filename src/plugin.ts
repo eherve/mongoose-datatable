@@ -30,6 +30,8 @@ export function datatablePlugin(schema: Schema, options?: DatatableSchemaOptions
 }
 
 async function datatable(this: Model<any>, query: DatatableQuery, options?: DatatableOptions): Promise<DatatableData> {
+  options?.logger?.debug('query', inspect(query, false, null, false));
+
   const pipeline = await buildPipeline(this, query, options);
 
   const recordsTotalPipeline: PipelineStage.FacetPipelineStage[] = [{ $group: { _id: null, value: { $sum: 1 } } }];
@@ -44,8 +46,6 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   const pagination = buildPagination(query);
   dataPipeline.push({ $skip: pagination.start });
   if (pagination?.length) dataPipeline.push({ $limit: pagination.length });
-
-  options?.logger?.debug(inspect(dataPipeline, false, null, true));
 
   const aggregation: PipelineStage[] = [
     {
@@ -66,6 +66,7 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   if (options?.unwind?.length) aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
   if (options?.conditions) aggregation.splice(0, 0, { $match: options.conditions });
 
+  options?.logger?.debug('aggregation', inspect(aggregation, false, null, false));
   const res: { recordsTotal: number; recordsFiltered: number; data: any[] }[] = await this.aggregate(aggregation);
 
   return {
@@ -150,7 +151,7 @@ function consolidateProject(project: any): any {
   Object.keys(project)
     .sort((p1, p2) => p1.length - p2.length)
     .forEach(key => {
-      if (!Object.keys(consolidated).find(k => key.startsWith(k))) {
+      if (!Object.keys(consolidated).find(k => key.startsWith(`${k}.`))) {
         consolidated[key] = project[key];
       }
     });
