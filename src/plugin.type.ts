@@ -12,7 +12,7 @@ export type DatatableSchemaOptions = {
 };
 export type DatatableOptions = DatatableSchemaOptions & {
   conditions?: FilterQuery<any>;
-  unwind: (string | { path: string; includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean })[];
+  unwind?: (string | { path: string; includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean })[];
 };
 
 export type DatatableData = {
