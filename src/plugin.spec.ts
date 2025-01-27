@@ -2,7 +2,6 @@
 
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import lodash from 'lodash';
 import mongoose from 'mongoose';
 import { datatablePlugin, DatatableData, DatatableOptions, DatatableQuery } from './public-api.js';
 

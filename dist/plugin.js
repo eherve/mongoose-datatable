@@ -1,8 +1,14 @@
+"use strict";
 /** @format */
-import { Types } from 'mongoose';
-import { inspect } from 'util';
-import lodash from 'lodash';
-export function datatablePlugin(schema, options) {
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.datatablePlugin = datatablePlugin;
+const mongoose_1 = require("mongoose");
+const util_1 = require("util");
+const lodash_1 = __importDefault(require("lodash"));
+function datatablePlugin(schema, options) {
     schema.statics.datatableOptions = () => options;
     schema.statics.datatable = datatable;
     // TODO remove in later version
@@ -26,7 +32,7 @@ async function datatable(query, options) {
     dataPipeline.push({ $skip: pagination.start });
     if (pagination?.length)
         dataPipeline.push({ $limit: pagination.length });
-    options?.logger?.debug(inspect(dataPipeline, false, null, true));
+    options?.logger?.debug((0, util_1.inspect)(dataPipeline, false, null, true));
     const res = await this.aggregate([
         {
             $facet: {
@@ -93,7 +99,7 @@ async function buildPipeline(model, query, options) {
                     previousField.array.forEach((_, index) => {
                         const path = previousField.array.slice(0, previousField.array.length - index).join('.');
                         const data = {};
-                        lodash.set(data, path, '$data');
+                        lodash_1.default.set(data, path, '$data');
                         lookups.push({ $group: { _id: '$_id', root: { $first: '$$ROOT' }, data: { $push: `$${path}` } } }, { $replaceRoot: { newRoot: { $mergeObjects: ['$root', data] } } });
                     });
                 }
@@ -138,11 +144,11 @@ function getSearch(column, search, field) {
 function getObjectIdSearch(column, search) {
     const filters = [];
     let value;
-    if (typeof search.value === 'string' && Types.ObjectId.isValid(search.value)) {
-        value = Types.ObjectId.createFromHexString(search.value);
+    if (typeof search.value === 'string' && mongoose_1.Types.ObjectId.isValid(search.value)) {
+        value = mongoose_1.Types.ObjectId.createFromHexString(search.value);
     }
-    else if (typeof search.value === 'number' && Types.ObjectId.isValid(search.value)) {
-        value = Types.ObjectId.createFromTime(search.value);
+    else if (typeof search.value === 'number' && mongoose_1.Types.ObjectId.isValid(search.value)) {
+        value = mongoose_1.Types.ObjectId.createFromTime(search.value);
     }
     else if (typeof search.value === 'object')
         value = search.value; // TODO allow disable for security reason

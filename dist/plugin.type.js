@@ -1,2 +1,3 @@
+"use strict";
 /** @format */
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
