@@ -47,14 +47,14 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   dataPipeline.push({ $skip: pagination.start });
   if (pagination?.length) dataPipeline.push({ $limit: pagination.length });
 
+  const $facet: Record<string, PipelineStage.FacetPipelineStage[]> = {
+    recordsFiltered: recordsFilteredPipeline,
+    data: dataPipeline,
+  };
+  if (query.disableTotal !== true) $facet.recordsTotal = recordsTotalPipeline;
+
   const aggregation: PipelineStage[] = [
-    {
-      $facet: {
-        recordsTotal: recordsTotalPipeline,
-        recordsFiltered: recordsFilteredPipeline,
-        data: dataPipeline,
-      },
-    },
+    { $facet },
     {
       $project: {
         recordsTotal: { $first: '$recordsTotal.value' },
@@ -378,16 +378,16 @@ function buildPagination(query: DatatableQuery): { start: number; length?: numbe
   let start: number = 0;
   if (typeof query.start === 'string') start = parseInt(query.start);
   else if (typeof query.start === 'number') start = query.start;
-  else start = 0;
+  if (isNaN(start)) start = 0;
 
   let length: number | undefined = undefined;
   if (typeof query.length === 'string') length = parseInt(query.length);
   else if (typeof query.length === 'number') length = query.length;
+  if (length !== undefined && isNaN(length)) length = undefined;
 
-  return {
-    start: !isNaN(start) ? start : 0,
-    length: length !== undefined && !isNaN(length) ? length : undefined,
-  };
+  if (length !== undefined) start = start * length;
+
+  return { start, length };
 }
 
 function buildSort(query: DatatableQuery): DatatableSort | undefined {

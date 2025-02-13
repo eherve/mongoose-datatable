@@ -28,14 +28,14 @@ async function datatable(query, options) {
     dataPipeline.push({ $skip: pagination.start });
     if (pagination?.length)
         dataPipeline.push({ $limit: pagination.length });
+    const $facet = {
+        recordsFiltered: recordsFilteredPipeline,
+        data: dataPipeline,
+    };
+    if (query.disableTotal !== true)
+        $facet.recordsTotal = recordsTotalPipeline;
     const aggregation = [
-        {
-            $facet: {
-                recordsTotal: recordsTotalPipeline,
-                recordsFiltered: recordsFilteredPipeline,
-                data: dataPipeline,
-            },
-        },
+        { $facet },
         {
             $project: {
                 recordsTotal: { $first: '$recordsTotal.value' },
@@ -364,17 +364,18 @@ function buildPagination(query) {
         start = parseInt(query.start);
     else if (typeof query.start === 'number')
         start = query.start;
-    else
+    if (isNaN(start))
         start = 0;
     let length = undefined;
     if (typeof query.length === 'string')
         length = parseInt(query.length);
     else if (typeof query.length === 'number')
         length = query.length;
-    return {
-        start: !isNaN(start) ? start : 0,
-        length: length !== undefined && !isNaN(length) ? length : undefined,
-    };
+    if (length !== undefined && isNaN(length))
+        length = undefined;
+    if (length !== undefined)
+        start = start * length;
+    return { start, length };
 }
 function buildSort(query) {
     if (!query.order?.length)

@@ -22,4 +22,5 @@ export type DatatableQuery = {
     start?: number | string;
     length?: number | string;
     search?: DatatableQuerySearch;
+    disableTotal?: boolean;
 };

@@ -30,4 +30,5 @@ export type DatatableQuery = {
   start?: number | string; // TODO remove string type
   length?: number | string; // TODO remove string type
   search?: DatatableQuerySearch;
+  disableTotal?: boolean;
 };
