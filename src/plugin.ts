@@ -6,6 +6,7 @@ import { DatatableData, DatatableOptions, DatatableSchemaOptions, DatatableSort 
 import {
   DatatableQuery,
   DatatableQueryColumn,
+  DatatableQueryFacet,
   DatatableQuerySearch,
   DatatableQuerySearchOperator,
 } from './query.type.js';
@@ -33,13 +34,6 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   options?.logger?.debug('query', inspect(query, false, null, false));
 
   const pipeline = await buildPipeline(this, query, options);
-
-  const recordsTotalPipeline: PipelineStage.FacetPipelineStage[] = [{ $group: { _id: null, value: { $sum: 1 } } }];
-  const recordsFilteredPipeline: PipelineStage.FacetPipelineStage[] = [
-    ...pipeline,
-    { $group: { _id: null, value: { $sum: 1 } } },
-  ];
-
   const dataPipeline: PipelineStage.FacetPipelineStage[] = [...pipeline];
   const $sort = buildSort(query);
   if ($sort) dataPipeline.push({ $sort });
@@ -48,33 +42,61 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   if (pagination?.length) dataPipeline.push({ $limit: pagination.length });
 
   const $facet: Record<string, PipelineStage.FacetPipelineStage[]> = {
-    recordsFiltered: recordsFilteredPipeline,
+    recordsFiltered: [...pipeline, { $group: { _id: null, value: { $sum: 1 } } }],
     data: dataPipeline,
   };
-  if (query.disableTotal !== true) $facet.recordsTotal = recordsTotalPipeline;
+  addUnfilteredInfoFacet($facet, query);
+  lodash.each(query.facets, facet => ($facet[facet.id] = [...pipeline, ...getQueryFacet(facet)]));
 
-  const aggregation: PipelineStage[] = [
-    { $facet },
-    {
-      $project: {
-        recordsTotal: { $first: '$recordsTotal.value' },
-        recordsFiltered: { $first: '$recordsFiltered.value' },
-        data: '$data',
-      },
-    },
-  ];
+  const $project: PipelineStage.Project['$project'] = {
+    recordsFiltered: { $first: '$recordsFiltered.value' },
+    data: '$data',
+  };
+  if (query.enableUnfilteredInfo === true) $project.recordsTotal = { $first: '$recordsTotal.value' };
+  const aggregation: PipelineStage[] = [{ $facet }, { $project }];
   if (options?.unwind?.length) aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
   if (options?.conditions) aggregation.splice(0, 0, { $match: options.conditions });
+  lodash.each(query.facets, facet => ($project[facet.id] = `$${facet.id}`));
 
   options?.logger?.debug('aggregation', inspect(aggregation, false, null, false));
-  const res: { recordsTotal: number; recordsFiltered: number; data: any[] }[] = await this.aggregate(aggregation);
+  return buildData(query, (await this.aggregate(aggregation))[0]);
+}
 
-  return {
+function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.FacetPipelineStage[] {
+  const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
+  const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
+  switch (operator) {
+    case 'count':
+      return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 } } }];
+    case 'sum':
+    case 'avg':
+      return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } as any } }];
+  }
+}
+
+function addUnfilteredInfoFacet($facet: Record<string, PipelineStage.FacetPipelineStage[]>, query: DatatableQuery) {
+  if (query.enableUnfilteredInfo !== true) return;
+  const recordsTotalPipeline: PipelineStage.FacetPipelineStage[] = [{ $group: { _id: null, value: { $sum: 1 } } }];
+  $facet.recordsTotal = recordsTotalPipeline;
+}
+
+function buildData(
+  query: DatatableQuery,
+  res: { recordsTotal: number; recordsFiltered: number; data: any[] } & {
+    [facetId: string]: { _id: any; value: any }[];
+  }
+): DatatableData {
+  const data: DatatableData = {
     draw: query.draw,
-    recordsTotal: res ? res[0].recordsTotal : 0,
-    recordsFiltered: res ? res[0].recordsFiltered : 0,
-    data: res ? res[0].data : [],
+    recordsFiltered: res ? res.recordsFiltered : 0,
+    data: res ? res.data : [],
   };
+  if (query.enableUnfilteredInfo === true) data.recordsTotal = res ? res.recordsTotal : 0;
+  if (query.facets?.length) {
+    data.facets = {};
+    lodash.each(query.facets, facet => (data.facets![facet.id] = res[facet.id]));
+  }
+  return data;
 }
 
 async function buildPipeline(
@@ -153,6 +175,9 @@ function consolidateProject(project: any): any {
     .forEach(key => {
       if (!Object.keys(consolidated).find(k => key.startsWith(`${k}.`))) {
         consolidated[key] = project[key];
+        Object.keys(consolidated).forEach(k => {
+          if (k.startsWith(`${key}.`)) delete consolidated[k];
+        });
       }
     });
   return consolidated;

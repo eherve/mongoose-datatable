@@ -15,11 +15,6 @@ function datatablePlugin(schema, options) {
 async function datatable(query, options) {
     options?.logger?.debug('query', (0, util_1.inspect)(query, false, null, false));
     const pipeline = await buildPipeline(this, query, options);
-    const recordsTotalPipeline = [{ $group: { _id: null, value: { $sum: 1 } } }];
-    const recordsFilteredPipeline = [
-        ...pipeline,
-        { $group: { _id: null, value: { $sum: 1 } } },
-    ];
     const dataPipeline = [...pipeline];
     const $sort = buildSort(query);
     if ($sort)
@@ -29,33 +24,56 @@ async function datatable(query, options) {
     if (pagination?.length)
         dataPipeline.push({ $limit: pagination.length });
     const $facet = {
-        recordsFiltered: recordsFilteredPipeline,
+        recordsFiltered: [...pipeline, { $group: { _id: null, value: { $sum: 1 } } }],
         data: dataPipeline,
     };
-    if (query.disableTotal !== true)
-        $facet.recordsTotal = recordsTotalPipeline;
-    const aggregation = [
-        { $facet },
-        {
-            $project: {
-                recordsTotal: { $first: '$recordsTotal.value' },
-                recordsFiltered: { $first: '$recordsFiltered.value' },
-                data: '$data',
-            },
-        },
-    ];
+    addUnfilteredInfoFacet($facet, query);
+    lodash.each(query.facets, facet => ($facet[facet.id] = [...pipeline, ...getQueryFacet(facet)]));
+    const $project = {
+        recordsFiltered: { $first: '$recordsFiltered.value' },
+        data: '$data',
+    };
+    if (query.enableUnfilteredInfo === true)
+        $project.recordsTotal = { $first: '$recordsTotal.value' };
+    const aggregation = [{ $facet }, { $project }];
     if (options?.unwind?.length)
         aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
     if (options?.conditions)
         aggregation.splice(0, 0, { $match: options.conditions });
+    lodash.each(query.facets, facet => ($project[facet.id] = `$${facet.id}`));
     options?.logger?.debug('aggregation', (0, util_1.inspect)(aggregation, false, null, false));
-    const res = await this.aggregate(aggregation);
-    return {
+    return buildData(query, (await this.aggregate(aggregation))[0]);
+}
+function getQueryFacet(facet) {
+    const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
+    const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
+    switch (operator) {
+        case 'count':
+            return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 } } }];
+        case 'sum':
+        case 'avg':
+            return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } } }];
+    }
+}
+function addUnfilteredInfoFacet($facet, query) {
+    if (query.enableUnfilteredInfo !== true)
+        return;
+    const recordsTotalPipeline = [{ $group: { _id: null, value: { $sum: 1 } } }];
+    $facet.recordsTotal = recordsTotalPipeline;
+}
+function buildData(query, res) {
+    const data = {
         draw: query.draw,
-        recordsTotal: res ? res[0].recordsTotal : 0,
-        recordsFiltered: res ? res[0].recordsFiltered : 0,
-        data: res ? res[0].data : [],
+        recordsFiltered: res ? res.recordsFiltered : 0,
+        data: res ? res.data : [],
     };
+    if (query.enableUnfilteredInfo === true)
+        data.recordsTotal = res ? res.recordsTotal : 0;
+    if (query.facets?.length) {
+        data.facets = {};
+        lodash.each(query.facets, facet => (data.facets[facet.id] = res[facet.id]));
+    }
+    return data;
 }
 async function buildPipeline(model, query, options) {
     const project = getOptionsProject(options);
@@ -124,6 +142,10 @@ function consolidateProject(project) {
         .forEach(key => {
         if (!Object.keys(consolidated).find(k => key.startsWith(`${k}.`))) {
             consolidated[key] = project[key];
+            Object.keys(consolidated).forEach(k => {
+                if (k.startsWith(`${key}.`))
+                    delete consolidated[k];
+            });
         }
     });
     return consolidated;

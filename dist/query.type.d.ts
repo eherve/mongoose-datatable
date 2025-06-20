@@ -15,6 +15,13 @@ export type DatatableQueryOrder = {
     column: number;
     dir: 'asc' | 'desc';
 };
+export type DatatableQueryFacetOperator = 'count' | ['sum', string] | ['avg', string];
+export type DatatableQueryFacet = {
+    id: string;
+    kind: 'indicator';
+    property: string;
+    operator: DatatableQueryFacetOperator;
+};
 export type DatatableQuery = {
     draw: string;
     columns: DatatableQueryColumn[];
@@ -22,5 +29,6 @@ export type DatatableQuery = {
     start?: number | string;
     length?: number | string;
     search?: DatatableQuerySearch;
-    disableTotal?: boolean;
+    enableUnfilteredInfo?: boolean;
+    facets?: DatatableQueryFacet[];
 };

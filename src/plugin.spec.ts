@@ -1,9 +1,11 @@
 /** @format */
 
+import * as lodash from 'lodash';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import mongoose from 'mongoose';
 import { datatablePlugin, DatatableData, DatatableOptions, DatatableQuery } from './public-api.js';
+import { inspect } from 'util';
 
 const mongoUrl = `mongodb://localhost:4242/test-datatable`;
 mongoose.set('strictQuery', false);
@@ -622,6 +624,33 @@ describe('Datatable Module', () => {
       expect(data.data[0].nested_embeded_schema_array[0]).to.have.property('embeded_schema_array');
       expect(data.data[0].nested_embeded_schema_array[0].embeded_schema_array).to.have.lengthOf(2);
       expect(data.data[0].nested_embeded_schema_array[0].embeded_schema_array[0]).to.have.property('code', 'FR01');
+    });
+
+    it('facet', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [
+          { data: '_id', searchable: true },
+          { data: 'first_name', searchable: true },
+          { data: 'last_name', searchable: false },
+          { data: 'activated', searchable: true },
+          { data: 'position', searchable: true },
+          { data: 'start_date', searchable: true },
+          { data: 'sub_schema.code', searchable: true },
+          { data: 'embeded_schema', searchable: true },
+          { data: 'array', searchable: true },
+        ],
+        order: [{ column: 3, dir: 'asc' }],
+        start: '0',
+        length: '10',
+        facets: [{ id: 'activated', kind: 'indicator', property: 'activated', operator: 'count' }],
+      };
+      const data = await model.datatable(query);
+      expect(data).to.not.be.null;
+      expect(data.draw).to.be.equals('2');
+      expect(data.data).to.have.lengthOf(records.length);
+      expect(data.facets).to.not.be.null;
+      expect(data.facets!.activated).to.have.lengthOf(2);
     });
 
     after(() => {
