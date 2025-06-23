@@ -6,10 +6,12 @@ const util_1 = require("util");
 const lodash = require("lodash");
 function datatablePlugin(schema, options) {
     schema.statics.datatableOptions = () => options;
-    schema.statics.datatable = datatable;
-    schema.statics.dataTable = function (query, options) {
+    schema.statics.datatable = function (query, opts) {
+        return datatable.call(this, query, { ...options, ...opts });
+    };
+    schema.statics.dataTable = function (query, opts) {
         console.warn('DEPRECATED use model.datatable');
-        return datatable.call(this, query, options);
+        return datatable.call(this, query, { ...options, ...opts });
     };
 }
 async function datatable(query, options) {

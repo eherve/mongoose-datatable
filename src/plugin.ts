@@ -22,11 +22,13 @@ type FieldInfo = {
 
 export function datatablePlugin(schema: Schema, options?: DatatableSchemaOptions) {
   schema.statics.datatableOptions = () => options;
-  schema.statics.datatable = datatable;
+  schema.statics.datatable = function (query: DatatableQuery, opts?: DatatableOptions) {
+    return datatable.call(this, query, { ...options, ...opts });
+  };
   // TODO remove in later version
-  schema.statics.dataTable = function (query: DatatableQuery, options?: DatatableOptions) {
+  schema.statics.dataTable = function (query: DatatableQuery, opts?: DatatableOptions) {
     console.warn('DEPRECATED use model.datatable');
-    return datatable.call(this, query, options);
+    return datatable.call(this, query, { ...options, ...opts });
   };
 }
 
@@ -327,7 +329,7 @@ function buildFilter(
     case '$nin':
       return { [property]: { $nin: value } };
     default:
-      if (regex) return { [property]: new RegExp(value1) };
+      if (regex) return { [property]: new RegExp(value1, 'gi') };
       return { [property]: value1 };
   }
 }
