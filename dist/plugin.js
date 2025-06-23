@@ -316,7 +316,7 @@ function buildFilter(property, op, value, regex = false) {
             return { [property]: { $nin: value } };
         default:
             if (regex)
-                return { [property]: new RegExp(value1) };
+                return { [property]: new RegExp(value1, 'gi') };
             return { [property]: value1 };
     }
 }
