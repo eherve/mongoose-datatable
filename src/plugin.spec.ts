@@ -1,13 +1,11 @@
 /** @format */
 
-import * as lodash from 'lodash';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import mongoose from 'mongoose';
-import { datatablePlugin, DatatableData, DatatableOptions, DatatableQuery } from './public-api.js';
-import { inspect } from 'util';
+import { DatatableData, DatatableOptions, datatablePlugin, DatatableQuery } from './public-api.js';
 
-const mongoUrl = `mongodb://localhost:4242/test-datatable`;
+const mongoUrl = `mongodb://localhost:27017/test-datatable`;
 mongoose.set('strictQuery', false);
 const subSchema = new mongoose.Schema({
   code: String,
@@ -75,10 +73,7 @@ describe('Datatable Module', () => {
       mongoose.connection.on('error', done);
       mongoose.connection.on('open', () =>
         seed()
-          .then(res => {
-            tests = res;
-            done();
-          })
+          .then(res => ((tests = res), done()))
           .catch(done)
       );
     });

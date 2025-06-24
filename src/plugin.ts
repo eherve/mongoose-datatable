@@ -198,7 +198,8 @@ function getSearch(column: DatatableQueryColumn, search?: DatatableQuerySearch, 
   if (column.searchable === false) return [];
   if (!search) return [];
   const filters: FilterQuery<any>[] = [];
-  switch (field?.instance?.toLowerCase() || column.type?.toLowerCase()) {
+  const type = column.type?.toLowerCase() ?? field?.instance?.toLowerCase();
+  switch (type) {
     case 'string':
       filters.push(...getStringSearch(column, search));
       break;
@@ -214,6 +215,9 @@ function getSearch(column: DatatableQueryColumn, search?: DatatableQuerySearch, 
     case 'objectid':
       filters.push(...getObjectIdSearch(column, search));
       break;
+    default:
+      const filter = buildFilter(column.data, search.operator, search.value, search.regex);
+      if (filter) filters.push(filter);
   }
   return filters;
 }

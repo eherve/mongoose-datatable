@@ -21,8 +21,8 @@
   ],
   "scripts": {
     "build": "rm dist/* ; tsc -d",
-    "test": "docker run -p 4242:27017 --name datatable --rm -d mongo:8.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
-    "docker": "docker run -p 4242:27017 --name datatable --rm -d mongo:8.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js",
+    "test": "docker run -p 27017:27017 --name datatable --rm -d mongo:8.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js ; docker stop $(docker ps -a -f name=datatable -q)",
+    "docker": "docker run -p 27017:27017 --name datatable --rm -d mongo:8.0 && tsc -p ./tsconfig.test.json && c8 mocha -R spec dist/**.spec.js",
     "prepare": "npm run build"
   },
   "engines": {

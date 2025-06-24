@@ -167,7 +167,8 @@ function getSearch(column, search, field) {
     if (!search)
         return [];
     const filters = [];
-    switch (field?.instance?.toLowerCase() || column.type?.toLowerCase()) {
+    const type = column.type?.toLowerCase() ?? field?.instance?.toLowerCase();
+    switch (type) {
         case 'string':
             filters.push(...getStringSearch(column, search));
             break;
@@ -183,6 +184,10 @@ function getSearch(column, search, field) {
         case 'objectid':
             filters.push(...getObjectIdSearch(column, search));
             break;
+        default:
+            const filter = buildFilter(column.data, search.operator, search.value, search.regex);
+            if (filter)
+                filters.push(filter);
     }
     return filters;
 }
