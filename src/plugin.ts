@@ -115,7 +115,7 @@ async function buildPipeline(
   query.columns.forEach(column => {
     const path = column.data.trim();
     if (!path.length) return;
-    project[path] = 1;
+    project[path] = column.projection ?? 1;
     const fields = getSchemaFieldInfo(model, path, options);
     const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
     $or.push(...globalFilter);
