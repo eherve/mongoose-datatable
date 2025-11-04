@@ -56,8 +56,8 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   };
   if (query.enableUnfilteredInfo === true) $project.recordsTotal = { $first: '$recordsTotal.value' };
   const aggregation: PipelineStage[] = [{ $facet }, { $project }];
-  if (options?.unwind?.length) aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
   if (options?.conditions) aggregation.splice(0, 0, { $match: options.conditions });
+  if (options?.unwind?.length) aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
   lodash.each(query.facets, facet => ($project[facet.id] = `$${facet.id}`));
 
   options?.logger?.debug('aggregation', inspect(aggregation, false, null, false));
