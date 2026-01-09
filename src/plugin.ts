@@ -107,6 +107,8 @@ async function buildPipeline(
   options: DatatableOptions | undefined
 ): Promise<PipelineStage.FacetPipelineStage[]> {
   const project: any = getOptionsProject(options);
+  lodash.each(query.facets, facet => (project[facet.property] = 1));
+
   const $or: FilterQuery<any>[] = [];
   const $and: FilterQuery<any>[] = [];
   const lookups: PipelineStage.FacetPipelineStage[] = [];
@@ -115,8 +117,11 @@ async function buildPipeline(
   query.columns.forEach(column => {
     const path = column.data.trim();
     if (!path.length) return;
+
     project[path] = column.projection ?? 1;
+
     const fields = getSchemaFieldInfo(model, path, options);
+
     const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
     $or.push(...globalFilter);
     const columnFilter = getSearch(column, column.search, fields?.length ? fields[fields.length - 1] : undefined);

@@ -7,6 +7,7 @@ export type DatatableQuerySearch = {
 export type DatatableQueryColumnType = 'string' | 'boolean' | 'number' | 'date' | 'objectid';
 export type DatatableQueryColumn = {
     data: string;
+    projection?: any;
     searchable?: boolean;
     search?: DatatableQuerySearch;
     type?: DatatableQueryColumnType;

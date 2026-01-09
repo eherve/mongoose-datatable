@@ -38,10 +38,10 @@ async function datatable(query, options) {
     if (query.enableUnfilteredInfo === true)
         $project.recordsTotal = { $first: '$recordsTotal.value' };
     const aggregation = [{ $facet }, { $project }];
-    if (options?.unwind?.length)
-        aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
     if (options?.conditions)
         aggregation.splice(0, 0, { $match: options.conditions });
+    if (options?.unwind?.length)
+        aggregation.splice(0, 0, ...options.unwind.map($unwind => ({ $unwind })));
     lodash.each(query.facets, facet => ($project[facet.id] = `$${facet.id}`));
     options?.logger?.debug('aggregation', (0, util_1.inspect)(aggregation, false, null, false));
     return buildData(query, (await this.aggregate(aggregation))[0]);
@@ -79,6 +79,7 @@ function buildData(query, res) {
 }
 async function buildPipeline(model, query, options) {
     const project = getOptionsProject(options);
+    lodash.each(query.facets, facet => (project[facet.property] = 1));
     const $or = [];
     const $and = [];
     const lookups = [];
@@ -87,7 +88,7 @@ async function buildPipeline(model, query, options) {
         const path = column.data.trim();
         if (!path.length)
             return;
-        project[path] = 1;
+        project[path] = column.projection ?? 1;
         const fields = getSchemaFieldInfo(model, path, options);
         const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
         $or.push(...globalFilter);
