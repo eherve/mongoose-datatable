@@ -1,7 +1,7 @@
 {
   "name": "mongoose-datatable",
   "description": "Server side dataTable request support for mongoose",
-  "version": "6.0.4",
+  "version": "6.0.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/eherve/mongoose-datatable.git"

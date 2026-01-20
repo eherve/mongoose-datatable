@@ -54,11 +54,11 @@ function getQueryFacet(facet) {
         stage['info'] = facet.info;
     switch (operator) {
         case 'count':
-            stage['value'] = { $sum: 1 };
+            stage.$group['value'] = { $sum: 1 };
             break;
         case 'sum':
         case 'avg':
-            facet['value'] = { [operator]: `$${property}` };
+            stage.$group['value'] = { [operator]: `$${property}` };
             break;
     }
     return [stage];
