@@ -1,5 +1,6 @@
 /** @format */
 
+import * as lodash from 'lodash';
 import { FilterQuery, Model, PipelineStage, Schema, SchemaType, Types } from 'mongoose';
 import { inspect } from 'util';
 import { DatatableData, DatatableOptions, DatatableSchemaOptions, DatatableSort } from './plugin.type.js';
@@ -10,7 +11,6 @@ import {
   DatatableQuerySearch,
   DatatableQuerySearchOperator,
 } from './query.type.js';
-import * as lodash from 'lodash';
 
 type FieldInfo = {
   path: string;
@@ -67,12 +67,13 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
 function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.FacetPipelineStage[] {
   const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
   const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
+  const info = facet.info ?? undefined;
   switch (operator) {
     case 'count':
-      return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 } } }];
+      return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 }, info } }];
     case 'sum':
     case 'avg':
-      return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } as any } }];
+      return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } as any, info } }];
   }
 }
 
@@ -86,7 +87,7 @@ function buildData(
   query: DatatableQuery,
   res: { recordsTotal: number; recordsFiltered: number; data: any[] } & {
     [facetId: string]: { _id: any; value: any }[];
-  }
+  },
 ): DatatableData {
   const data: DatatableData = {
     draw: query.draw,
@@ -104,7 +105,7 @@ function buildData(
 async function buildPipeline(
   model: Model<any>,
   query: DatatableQuery,
-  options: DatatableOptions | undefined
+  options: DatatableOptions | undefined,
 ): Promise<PipelineStage.FacetPipelineStage[]> {
   const project: any = getOptionsProject(options);
   lodash.each(query.facets, facet => (project[facet.property] = 1));
@@ -150,7 +151,7 @@ async function buildPipeline(
           });
           lookups.push(
             { $lookup: { from, localField, foreignField: '_id', as: localField } },
-            { $unwind: { path: `$${localField}`, preserveNullAndEmptyArrays: true } }
+            { $unwind: { path: `$${localField}`, preserveNullAndEmptyArrays: true } },
           );
           previousField.array.forEach((_, index) => {
             const path: string = previousField.array!.slice(0, previousField.array!.length - index).join('.');
@@ -158,7 +159,7 @@ async function buildPipeline(
             lodash.set(data, path, '$data');
             lookups.push(
               { $group: { _id: '$_id', root: { $first: '$$ROOT' }, data: { $push: `$${path}` } } },
-              { $replaceRoot: { newRoot: { $mergeObjects: ['$root', data] } } }
+              { $replaceRoot: { newRoot: { $mergeObjects: ['$root', data] } } },
             );
           });
         }
@@ -192,11 +193,11 @@ function consolidateProject(project: any): any {
 
 function getOptionsProject(options: DatatableOptions | undefined): { [field: string]: any } {
   if (!options?.select) return {};
-  return typeof options.select === 'string'
-    ? options.select.split(' ').reduce((p: any, c: string) => ((p[c] = 1), p), {})
-    : Array.isArray(options.select)
-    ? options.select.reduce((p: any, c: string) => ((p[c] = 1), p), {})
-    : options.select;
+  return (
+    typeof options.select === 'string' ? options.select.split(' ').reduce((p: any, c: string) => ((p[c] = 1), p), {})
+    : Array.isArray(options.select) ? options.select.reduce((p: any, c: string) => ((p[c] = 1), p), {})
+    : options.select
+  );
 }
 
 function getSearch(column: DatatableQueryColumn, search?: DatatableQuerySearch, field?: FieldInfo): FilterQuery<any>[] {
@@ -234,7 +235,8 @@ function getObjectIdSearch(column: DatatableQueryColumn, search: DatatableQueryS
     value = Types.ObjectId.createFromHexString(search.value);
   } else if (typeof search.value === 'number' && Types.ObjectId.isValid(search.value)) {
     value = Types.ObjectId.createFromTime(search.value);
-  } else if (typeof search.value === 'object') value = search.value; // TODO allow disable for security reason
+  } else if (typeof search.value === 'object')
+    value = search.value; // TODO allow disable for security reason
   else if (search.value === null) value = null;
   const filter = buildFilter(column.data, search.operator, value);
   if (filter) filters.push(filter);
@@ -256,7 +258,8 @@ function getDateSearch(column: DatatableQueryColumn, search: DatatableQuerySearc
     if (from && !isNaN(from.valueOf())) value = [...(value || []), from];
     const to = search.value?.to ? new Date(search.value.to) : undefined;
     if (to && !isNaN(to.valueOf())) value = [...(value || []), to];
-  } else if (typeof search.value === 'object') value = search.value; // TODO allow disable for security reason
+  } else if (typeof search.value === 'object')
+    value = search.value; // TODO allow disable for security reason
   else if (search.value === null) value = null;
   const filter = buildFilter(column.data, search.operator, value);
   if (filter) filters.push(filter);
@@ -272,7 +275,8 @@ function getNumberSearch(column: DatatableQueryColumn, search: DatatableQuerySea
       .map(value => parseFloat(value))
       .filter(value => !isNaN(value));
   } else if (typeof search.value === 'number') value = search.value;
-  else if (typeof search.value === 'object') value = search.value; // TODO allow disable for security reason
+  else if (typeof search.value === 'object')
+    value = search.value; // TODO allow disable for security reason
   else if (search.value === null) value = null;
   const filter = buildFilter(column.data, search.operator, value);
   if (filter) filters.push(filter);
@@ -284,9 +288,13 @@ function getBooleanSearch(column: DatatableQueryColumn, search: DatatableQuerySe
   let value: any;
   if (typeof search.value === 'string') {
     const stringValue = search.value.trim().toLowerCase();
-    value = stringValue === 'true' ? true : stringValue === 'false' ? false : undefined;
+    value =
+      stringValue === 'true' ? true
+      : stringValue === 'false' ? false
+      : undefined;
   } else if (typeof search.value === 'boolean') value = search.value;
-  else if (typeof search.value === 'object') value = search.value; // TODO allow disable for security reason
+  else if (typeof search.value === 'object')
+    value = search.value; // TODO allow disable for security reason
   else if (search.value === null) value = null;
 
   const filter = buildFilter(column.data, search.operator, value);
@@ -299,7 +307,8 @@ function getStringSearch(column: DatatableQueryColumn, search: DatatableQuerySea
   const filters: FilterQuery<any>[] = [];
   let value: any;
   if (typeof search.value === 'string') value = search.value;
-  else if (typeof search.value === 'object') value = search.value; // TODO allow disable for security reason
+  else if (typeof search.value === 'object')
+    value = search.value; // TODO allow disable for security reason
   else if (search.value === null) value = null;
   const filter = buildFilter(column.data, search.operator, value, search.regex);
   if (filter) filters.push(filter);
@@ -310,7 +319,7 @@ function buildFilter(
   property: string,
   op: DatatableQuerySearchOperator | undefined,
   value: any,
-  regex: boolean = false
+  regex: boolean = false,
 ): FilterQuery<any> | undefined {
   if (value === undefined) return;
   if (value === null) return { [property]: null };
@@ -353,7 +362,7 @@ function isSelectable(fields: FieldInfo[]): boolean {
 function getSchemaFieldInfo(
   model: Model<any>,
   path: string,
-  options: DatatableOptions | undefined
+  options: DatatableOptions | undefined,
 ): FieldInfo[] | undefined {
   const field = model.schema.path(path);
   if (field) return [buildFieldInfo(path, field)];
@@ -401,7 +410,7 @@ function buildFieldInfo(path: string, field: SchemaType): FieldInfo {
 function getFieldRefModel(
   model: Model<any>,
   field: FieldInfo,
-  options: DatatableOptions | undefined
+  options: DatatableOptions | undefined,
 ): Model<any> | undefined {
   try {
     if (field.ref) return model.db.model(field.ref);

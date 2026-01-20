@@ -26,10 +26,11 @@ export type DatatableQueryOrder = {
 
 export type DatatableQueryFacetOperator = 'count' | ['sum', string] | ['avg', string];
 export type DatatableQueryFacet = {
-  id: string;
   kind: 'indicator';
+  id: string;
   property: string;
   operator: DatatableQueryFacetOperator;
+  info?: any;
 };
 
 export type DatatableQuery = {

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.datatablePlugin = datatablePlugin;
+const lodash = require("lodash");
 const mongoose_1 = require("mongoose");
 const util_1 = require("util");
-const lodash = require("lodash");
 function datatablePlugin(schema, options) {
     schema.statics.datatableOptions = () => options;
     schema.statics.datatable = function (query, opts) {
@@ -49,12 +49,13 @@ async function datatable(query, options) {
 function getQueryFacet(facet) {
     const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
     const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
+    const info = facet.info ?? undefined;
     switch (operator) {
         case 'count':
-            return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 } } }];
+            return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 }, info } }];
         case 'sum':
         case 'avg':
-            return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } } }];
+            return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` }, info } }];
     }
 }
 function addUnfilteredInfoFacet($facet, query) {
@@ -156,11 +157,9 @@ function consolidateProject(project) {
 function getOptionsProject(options) {
     if (!options?.select)
         return {};
-    return typeof options.select === 'string'
-        ? options.select.split(' ').reduce((p, c) => ((p[c] = 1), p), {})
-        : Array.isArray(options.select)
-            ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
-            : options.select;
+    return (typeof options.select === 'string' ? options.select.split(' ').reduce((p, c) => ((p[c] = 1), p), {})
+        : Array.isArray(options.select) ? options.select.reduce((p, c) => ((p[c] = 1), p), {})
+            : options.select);
 }
 function getSearch(column, search, field) {
     if (column.searchable === false)
@@ -265,7 +264,10 @@ function getBooleanSearch(column, search) {
     let value;
     if (typeof search.value === 'string') {
         const stringValue = search.value.trim().toLowerCase();
-        value = stringValue === 'true' ? true : stringValue === 'false' ? false : undefined;
+        value =
+            stringValue === 'true' ? true
+                : stringValue === 'false' ? false
+                    : undefined;
     }
     else if (typeof search.value === 'boolean')
         value = search.value;
