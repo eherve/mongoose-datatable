@@ -51,7 +51,7 @@ function getQueryFacet(facet) {
     const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
     const stage = { $group: { _id: `$${facet.property}` } };
     if (facet.info)
-        stage['info'] = facet.info;
+        stage.$group['info'] = facet.info;
     switch (operator) {
         case 'count':
             stage.$group['value'] = { $sum: 1 };

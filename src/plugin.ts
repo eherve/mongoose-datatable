@@ -68,7 +68,7 @@ function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.Group[] {
   const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
   const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
   const stage: PipelineStage.Group = { $group: { _id: `$${facet.property}` } };
-  if (facet.info) stage['info'] = facet.info;
+  if (facet.info) stage.$group['info'] = facet.info;
   switch (operator) {
     case 'count':
       stage.$group['value'] = { $sum: 1 };
