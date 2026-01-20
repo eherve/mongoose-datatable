@@ -49,14 +49,19 @@ async function datatable(query, options) {
 function getQueryFacet(facet) {
     const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
     const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
-    const info = facet.info ?? undefined;
+    const stage = { $group: { _id: `$${facet.property}` } };
+    if (facet.info)
+        stage['info'] = facet.info;
     switch (operator) {
         case 'count':
-            return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 }, info } }];
+            stage['value'] = { $sum: 1 };
+            break;
         case 'sum':
         case 'avg':
-            return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` }, info } }];
+            facet['value'] = { [operator]: `$${property}` };
+            break;
     }
+    return [stage];
 }
 function addUnfilteredInfoFacet($facet, query) {
     if (query.enableUnfilteredInfo !== true)

@@ -64,17 +64,21 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   return buildData(query, (await this.aggregate(aggregation))[0]);
 }
 
-function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.FacetPipelineStage[] {
+function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.Group[] {
   const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
   const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
-  const info = facet.info ?? undefined;
+  const stage: PipelineStage.Group = { $group: { _id: `$${facet.property}` } };
+  if (facet.info) stage['info'] = facet.info;
   switch (operator) {
     case 'count':
-      return [{ $group: { _id: `$${facet.property}`, value: { $sum: 1 }, info } }];
+      stage['value'] = { $sum: 1 };
+      break;
     case 'sum':
     case 'avg':
-      return [{ $group: { _id: `$${facet.property}`, value: { [operator]: `$${property}` } as any, info } }];
+      facet['value'] = { [operator]: `$${property}` };
+      break;
   }
+  return [stage];
 }
 
 function addUnfilteredInfoFacet($facet: Record<string, PipelineStage.FacetPipelineStage[]>, query: DatatableQuery) {
