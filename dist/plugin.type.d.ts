@@ -1,10 +1,22 @@
 import { FilterQuery } from 'mongoose';
+import type { DatatableQuerySearchOperator } from './query.type.js';
 export type DatatableLogger = {
     debug: (...args: any) => any;
     warn: (...args: any) => any;
 };
+export type DatatableSecurityOptions = {
+    validatePaths?: boolean;
+    allowObjectSearch?: boolean;
+    allowedSearchOperators?: DatatableQuerySearchOperator[];
+    allowedFacetOperators?: ('count' | 'sum' | 'avg')[];
+    allowedProjectionOperators?: string[];
+    allowedFacetInfoOperators?: string[];
+    validateSelectableExpressionFields?: boolean;
+    validateSelectableFacetFields?: boolean;
+};
 export type DatatableSchemaOptions = {
     logger?: DatatableLogger;
+    security?: DatatableSecurityOptions;
 };
 export type DatatableOptions = DatatableSchemaOptions & {
     conditions?: FilterQuery<any>;
@@ -26,6 +38,7 @@ export type DatatableData = {
         [id: string]: {
             _id: any;
             value: any;
+            info?: any;
         }[];
     };
 };

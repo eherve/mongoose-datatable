@@ -1,4 +1,4 @@
-export type DatatableQuerySearchOperator = '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤' | '$in' | '$nin';
+export type DatatableQuerySearchOperator = '=' | '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤' | '$in' | '$nin';
 export type DatatableQuerySearch = {
     value: any;
     regex?: boolean;
@@ -8,7 +8,9 @@ export type DatatableQueryColumnType = 'string' | 'boolean' | 'number' | 'date' 
 export type DatatableQueryColumn = {
     data: string;
     projection?: any;
+    name?: string;
     searchable?: boolean;
+    orderable?: boolean;
     search?: DatatableQuerySearch;
     type?: DatatableQueryColumnType;
 };

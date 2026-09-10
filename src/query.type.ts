@@ -1,6 +1,6 @@
 /** @format */
 
-export type DatatableQuerySearchOperator = '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤' | '$in' | '$nin';
+export type DatatableQuerySearchOperator = '=' | '>' | '>=' | '≥' | '<' | '≤' | '<>' | '≤≥' | '><' | '≥≤' | '$in' | '$nin';
 
 export type DatatableQuerySearch = {
   value: any;
@@ -14,7 +14,9 @@ export type DatatableQueryColumn = {
   data: string;
   projection?: any;
 
+  name?: string;
   searchable?: boolean;
+  orderable?: boolean;
   search?: DatatableQuerySearch;
   type?: DatatableQueryColumnType;
 };

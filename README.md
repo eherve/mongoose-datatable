@@ -1,220 +1,138 @@
-# mongoose-dataTable
+# mongoose-datatable
 
-*Version 3.0.0*
+Server-side datatable processing for Mongoose using aggregation pipelines.
 
-Server side dataTable request support for mongoose.
+## Requirements
 
-Support mongoose version >= 3.8.0
-
-Support mongoDB version >= 2.4
-
-Support DataTable >= 1.10
-
-## New Functionnalities
-
-* Population of ref sub-document or ref sub-documents are done with $lookup in aggregation
-* Filter and sort are possible on populated sub-documents
-* add regex search on string fields
-
-## Migration
-
-### v1.x.x
-
-```javascript
-var DataTable = require('mongoose-datatable');
-var options = { debug: true, verbose: true };
-DataTable.configure(options);
-mongoose.plugin(Datatable.init);
-
-...
-
-model.dataTable(query, {}, function(err, data) {
-  if (err) { return manageError(err); }
-  console.log('send data...');
-  res.send(data);
-});
-```
-
-### v2.x.x [typescript]
-
-```typescript
-import Datatable from './datatable';
-const nologger = { debug: () => { }, info: () => { }, warn: () => { }, error: () => { } } as any;
-var options = { logger: nologger };
-Datatable.configure(options);
-mongoose.plugin(Datatable.init);
-
-...
-
-model.dataTable(query)
-  .then((data: any) =>  res.send(data))
-  .catch(err => manageError(err))
-```
+- Node.js 18 or newer
+- Mongoose 8.x (`mongoose` is a peer dependency)
 
 ## Install
 
-    npm install mongoose-datatable
+```bash
+npm install mongoose-datatable mongoose
+```
 
-## Loading
+## Setup
 
-    import Datatable from './datatable';
-    
-## Configuration
+Register the plugin on a schema or globally:
 
-    DataTable.configure(options);
-    
-### Options
+```ts
+import mongoose from 'mongoose';
+import { datatablePlugin } from 'mongoose-datatable';
 
-Configuration is not mandatory, the default options contains only the default handlers, for other types, an unknown type message is displayed on the console.
+mongoose.plugin(datatablePlugin);
+```
 
-#### Logger
+The plugin adds the static method `datatable(query, options?)` to Mongoose models. `dataTable` remains a deprecated compatibility alias.
 
-*option key: logger*
-If the options contains a logger [key: logger]: ILogger, the default logger <i>console</i> is override by it.
-It allows to use an application specific logger.
-```typescript
-interface ILogger {
-  debug: (...data: any) => void;
-  info: (...data: any) => void;
-  warn: (...data: any) => void;
-  error: (...data: any) => void;
+## Request contract
+
+The main query fields are:
+
+- `draw`: request identifier returned unchanged in the response;
+- `columns`: requested fields, projection expressions and search metadata;
+- `order`: column indexes and `asc` / `desc` direction;
+- `start`: page index;
+- `length`: page size;
+- `search`: optional global search;
+- `facets`: optional indicator aggregations;
+- `enableUnfilteredInfo`: when `true`, also calculate `recordsTotal`.
+
+Pagination intentionally treats `start` as a page index and converts it to the MongoDB skip offset with `start * length`.
+
+Supported search operators include `=`, `>`, `>=`, `≥`, `<`, `≤`, range operators, `$in` and `$nin`.
+
+## Response contract
+
+```ts
+{
+  draw,
+  recordsFiltered,
+  recordsTotal?,
+  data,
+  facets?,
 }
 ```
 
-#### Condition handlers
+`recordsTotal` is only calculated when `enableUnfilteredInfo === true`. `recordsFiltered` always represents the number of records after the datatable filters.
 
-*option key: handlers*
-The condition handlers is an object that contains handlers (functions) with for key, mongoose schema field type name.
-eg. String, Date, Boolean...
-It is possible to declare a default handler (key: default) that will be used if no handler found for a specific type.
-To not do any search the function should return null.
-These handlers are called when the module try to build the condition on a field. They can return a condition object for the field to match ( eg.: { $in: [...] } ) and have for arguments:
+## Options
 
-* options: IOptions
+`model.datatable(query, options)` supports:
 
-    The options passed to the model database call.
+- `conditions`: base Mongoose conditions applied before datatable filtering;
+- `select`: additional projection fields;
+- `unwind`: aggregation unwind stages;
+- `logger`: optional debug/warn logger.
 
-* query: IQuery
+Example:
 
-    The query passed to the model database call.
-
-* column: IColumn
-
-    The jquery column data.
-
-* field: any
-
-    The field against the condition is build. This is the mongoose FieldType.
-
-* search: ISearch
-
-    The search data to build the condition.
-
-* global: boolean
-
-    If true, the search condition is from jquery global search; if false, it's a specific search on thie field.
-
-##### Default condition handlers
-
-* String
-  * global\
-    Match anywere in the string in case insensitive mode.
-
-  * specific\
-    If the search string is a regex (match: */^\/.*\/$/*) then the regex is used\
-    Else match anywere in the string in case insensitive mode.
-
-* Boolean
-  * global\
-    No search done
-
-  * specific\
-    Match <i>true</i> or <i>false</i> in case insensitive mode.
-    
-* Date
-  * global\
-    No search done
-
-  * specific\
-    The date search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>to</i> value.
-    The <i>from</i> and <i>to</i> value are String dates and the <i>to</i> value is only needed when the <i>type</i> is "<>" or "<=>".
-    The <i>type</i> can be "=" (same as no <i>type</i>), ">", ">=", "<", "<=", "<>", "<=>" meaning respectively equals, greater than, greater or equal than, less than, less or equal than, between and between equals.
-
-* Number
-  * global\
-    No search done
-
-  * specific\
-    The number search is composed in three parts, the <i>type</i> of the match, the <i>from</i> value and the <i>to</i> value.
-    The <i>from</i> and <i>to</i> value are number and the <i>to</i> value is only needed when the <i>type</i> is "<>" or "<=>".
-    The <i>type</i> can be "=" (same as no <i>type</i>), ">", ">=", "<", "<=", "<>", "<=>" meaning respectively equals, greater than, greater or equal than, less than, less or equal than, between and between equals.
-
-##### eg.
-
-<pre>
-options: {
-  handlers: {
-    String: StringHandler,
-    Boolean: booleanHandler,
-    Date: dateHandler,
-    default: defaultHandler
-  }
-}
-</pre>
-    
-## Initialization
-
-``` typescript
-const mongoose = require('mongoose');
-mongoose.plugin(DataTable.init);
+```ts
+const result = await Model.datatable(query, {
+  conditions: { archived: false },
+});
 ```
 
-## Fields
+## Security hardening
 
-If a mongoose schema field is marked as not selectable with the option "_select: false_". Or if the option _dataTableSelect_ is present and set to false: "_dataTableSelect: false_". Then the field will not be selected even if it was requested by the dataTable client.
+Hardening is opt-in so existing consumers keep their current behavior. Configure it either when registering the plugin or for an individual `datatable()` call.
 
-## Usage
-
-The method <i>datatable </i> was added to all the schema as static method. The method has for parameters:
-
-* query
-
-    The query parameters send by the dataTable client
-
-* options
-
-    Options pass to the condition handlers. OPTIONAL parameter.
-
-    * handlers
-
-        Handlers can be given to override the overall behavior of condition builder handlers.
-        The field options.handlers is an object with for keys either a field type (like String, Boolean,,,) or a field path (like username, name.firstName) and for values, functions like the condition handler functions.
-
-    * conditions
-
-        Conditions is an object as the mongoose find conditions. This conditions filter the dataTable data returned and the counts, it is applied as the first conjunction condition.
-
-    * select
-
-        Select is an object, a string or an array as the mongoose query select argument. The select is applied on the find query that return the displayed entities.
-
-* callback
-
-    The callback called in case of error or when the data have been retrieved.
-
-``` typescript
-model.dataTable(query, options)
-  .then((data: any) =>  res.send(data))
-  .catch(err => manageError(err))
+```ts
+const result = await Model.datatable(query, {
+  security: {
+    validatePaths: true,
+    allowObjectSearch: false,
+    allowedSearchOperators: ['=', '>', '>=', '≥', '<', '≤', '<>', '≤≥', '><', '≥≤', '$in', '$nin'],
+    allowedFacetOperators: ['count', 'sum', 'avg'],
+    allowedProjectionOperators: ['$size', '$ifNull'],
+    allowedFacetInfoOperators: ['$first'],
+    validateSelectableExpressionFields: true,
+    validateSelectableFacetFields: true,
+  },
+});
 ```
 
-## Chunk Search
+Available controls:
 
-```diff
-- Not implemented yet
+- `validatePaths`: reject unsafe MongoDB paths and reserved object keys such as `$where` or `__proto__`;
+- `allowObjectSearch`: when `false`, reject raw object query values while keeping date-range `{ from, to }` values supported;
+- `allowedSearchOperators`: allowlist search operators accepted from the request;
+- `allowedFacetOperators`: allowlist `count`, `sum` and `avg`;
+- `allowedProjectionOperators`: recursively allowlist MongoDB operators used by client-provided projection expressions;
+- `allowedFacetInfoOperators`: recursively allowlist MongoDB operators used by facet `info`;
+- `validateSelectableExpressionFields`: prevent expressions from reading fields disabled with `select: false`, `dataTableSelect: false` or `datatable.selectabled: false`;
+- `validateSelectableFacetFields`: prevent facet keys and `sum` / `avg` source fields from reading fields disabled by the same schema selection rules.
+
+If a security option is omitted, that specific restriction is not enabled. Schema-level and per-call security options are merged, with per-call values taking precedence.
+
+## Schema field selection
+
+A field is not exposed by the datatable when one of the following schema options disables selection:
+
+```ts
+select: false
 ```
 
-## Change log]
+or the historical options:
 
-* v2.1.0
-  * null search value are now intepreted as search for null value on field
+```ts
+dataTableSelect: false
+```
+
+```ts
+datatable: { selectabled: false }
+```
+
+## Facets
+
+Indicator facets support `count`, `sum` and `avg` operations. A facet may also expose an `info` aggregation value used by the frontend to render richer indicators.
+
+## Development
+
+```bash
+npm test
+npm run build
+```
+
+The test command starts a temporary MongoDB 8 Docker container, runs the compiled Mocha suite with coverage, and cleans the container when it finishes.

@@ -12,6 +12,7 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
+    "types": ["node"],
     "outDir": "./dist"
   },
   "include": ["src/**.ts"],

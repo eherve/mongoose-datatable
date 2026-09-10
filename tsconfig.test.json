@@ -1,4 +1,14 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules"]
+  "compilerOptions": {
+    "types": [
+      "node",
+      "mocha"
+    ],
+    "outDir": "./dist-test",
+    "declaration": false
+  },
+  "exclude": [
+    "node_modules"
+  ]
 }

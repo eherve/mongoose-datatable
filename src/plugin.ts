@@ -2,8 +2,14 @@
 
 import * as lodash from 'lodash';
 import { FilterQuery, Model, PipelineStage, Schema, SchemaType, Types } from 'mongoose';
-import { inspect } from 'util';
-import { DatatableData, DatatableOptions, DatatableSchemaOptions, DatatableSort } from './plugin.type.js';
+import { inspect } from 'node:util';
+import {
+  DatatableData,
+  DatatableOptions,
+  DatatableSchemaOptions,
+  DatatableSecurityOptions,
+  DatatableSort,
+} from './plugin.type.js';
 import {
   DatatableQuery,
   DatatableQueryColumn,
@@ -20,19 +26,29 @@ type FieldInfo = {
   array?: string[];
 };
 
-export function datatablePlugin(schema: Schema, options?: DatatableSchemaOptions) {
+export function datatablePlugin(schema: Schema, options?: DatatableSchemaOptions): void {
   schema.statics.datatableOptions = () => options;
   schema.statics.datatable = function (query: DatatableQuery, opts?: DatatableOptions) {
-    return datatable.call(this, query, { ...options, ...opts });
+    return datatable.call(this, query, mergeDatatableOptions(options, opts));
   };
   // TODO remove in later version
   schema.statics.dataTable = function (query: DatatableQuery, opts?: DatatableOptions) {
     console.warn('DEPRECATED use model.datatable');
-    return datatable.call(this, query, { ...options, ...opts });
+    return datatable.call(this, query, mergeDatatableOptions(options, opts));
   };
 }
 
+function mergeDatatableOptions(
+  schemaOptions: DatatableSchemaOptions | undefined,
+  callOptions: DatatableOptions | undefined,
+): DatatableOptions {
+  const security =
+    schemaOptions?.security || callOptions?.security ? { ...schemaOptions?.security, ...callOptions?.security } : undefined;
+  return { ...schemaOptions, ...callOptions, security };
+}
+
 async function datatable(this: Model<any>, query: DatatableQuery, options?: DatatableOptions): Promise<DatatableData> {
+  validateQuerySecurity(this, query, options);
   options?.logger?.debug('query', inspect(query, false, null, false));
 
   const pipeline = await buildPipeline(this, query, options);
@@ -64,6 +80,156 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
   return buildData(query, (await this.aggregate(aggregation))[0]);
 }
 
+const RESERVED_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function validateQuerySecurity(model: Model<any>, query: DatatableQuery, options?: DatatableOptions): void {
+  const security = options?.security;
+  if (!security) return;
+
+  validateSearchSecurity(query.search, 'search', security);
+
+  query.columns.forEach((column, index) => {
+    if (security.validatePaths) validateMongoPath(column.data, `columns[${index}].data`);
+    validateSearchSecurity(column.search, `columns[${index}].search`, security);
+    if (column.projection !== undefined) {
+      validateExpressionSecurity(
+        model,
+        column.projection,
+        security.allowedProjectionOperators,
+        security,
+        options,
+        `columns[${index}].projection`,
+      );
+    }
+  });
+
+  query.facets?.forEach((facet, index) => {
+    if (security.validatePaths) {
+      validateFacetId(facet.id, `facets[${index}].id`);
+      validateMongoPath(facet.property, `facets[${index}].property`);
+      if (Array.isArray(facet.operator)) validateMongoPath(facet.operator[1], `facets[${index}].operator[1]`);
+    }
+    if (security.validateSelectableFacetFields) {
+      validateSelectableExpressionField(model, facet.property, options, `facets[${index}].property`);
+      if (Array.isArray(facet.operator)) {
+        validateSelectableExpressionField(model, facet.operator[1], options, `facets[${index}].operator[1]`);
+      }
+    }
+
+    const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
+    if (security.allowedFacetOperators && !security.allowedFacetOperators.includes(operator)) {
+      throwSecurityError(`facets[${index}].operator`, `operator ${operator} is not allowed`);
+    }
+
+    if (facet.info !== undefined) {
+      validateExpressionSecurity(
+        model,
+        facet.info,
+        security.allowedFacetInfoOperators,
+        security,
+        options,
+        `facets[${index}].info`,
+      );
+    }
+  });
+}
+
+function validateSearchSecurity(
+  search: DatatableQuerySearch | undefined,
+  context: string,
+  security: DatatableSecurityOptions,
+): void {
+  if (!search) return;
+
+  if (search.operator && security.allowedSearchOperators && !security.allowedSearchOperators.includes(search.operator)) {
+    throwSecurityError(`${context}.operator`, `operator ${search.operator} is not allowed`);
+  }
+
+  if (security.allowObjectSearch !== false || !isRestrictedSearchObject(search.value)) return;
+  throwSecurityError(`${context}.value`, 'raw object search values are not allowed');
+}
+
+function isRestrictedSearchObject(value: any): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  if (Array.isArray(value) || value instanceof Date || value instanceof Types.ObjectId) return false;
+  return !isDateRangeSearchValue(value);
+}
+
+function isDateRangeSearchValue(value: any): boolean {
+  const keys = Object.keys(value);
+  if (!keys.length || keys.some(key => key !== 'from' && key !== 'to')) return false;
+  return keys.every(key => {
+    const item = value[key];
+    return item === null || item === undefined || typeof item === 'string' || typeof item === 'number' || item instanceof Date;
+  });
+}
+
+function validateExpressionSecurity(
+  model: Model<any>,
+  value: any,
+  allowedOperators: string[] | undefined,
+  security: DatatableSecurityOptions,
+  options: DatatableOptions | undefined,
+  context: string,
+): void {
+  if (typeof value === 'string' && value.startsWith('$') && !value.startsWith('$$')) {
+    const path = value.substring(1);
+    if (security.validatePaths) validateMongoPath(path, `${context} field reference`);
+    if (security.validateSelectableExpressionFields) validateSelectableExpressionField(model, path, options, context);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      validateExpressionSecurity(model, item, allowedOperators, security, options, `${context}[${index}]`);
+    });
+    return;
+  }
+
+  if (!lodash.isPlainObject(value)) return;
+
+  Object.entries(value).forEach(([key, nestedValue]) => {
+    if (RESERVED_PATH_SEGMENTS.has(key) || key.includes('\0')) {
+      throwSecurityError(context, `unsafe expression key ${key}`);
+    }
+    if (key.startsWith('$') && allowedOperators && !allowedOperators.includes(key)) {
+      throwSecurityError(context, `operator ${key} is not allowed`);
+    }
+    validateExpressionSecurity(model, nestedValue, allowedOperators, security, options, `${context}.${key}`);
+  });
+}
+
+function validateSelectableExpressionField(
+  model: Model<any>,
+  path: string,
+  options: DatatableOptions | undefined,
+  context: string,
+): void {
+  const fields = getSchemaFieldInfo(model, path, options);
+  if (fields?.length && !isSelectable(fields)) {
+    throwSecurityError(context, `field ${path} is not selectable`);
+  }
+}
+
+function validateMongoPath(path: string, context: string): void {
+  if (typeof path !== 'string' || !path.length) throwSecurityError(context, 'path is empty or invalid');
+  const segments = path.split('.');
+  const unsafe = segments.some(
+    segment => !segment.length || segment.includes('$') || segment.includes('\0') || RESERVED_PATH_SEGMENTS.has(segment),
+  );
+  if (unsafe) throwSecurityError(context, `unsafe path ${path}`);
+}
+
+function validateFacetId(id: string, context: string): void {
+  if (typeof id !== 'string' || !id.length || id.includes('.') || id.includes('$') || id.includes('\0') || RESERVED_PATH_SEGMENTS.has(id)) {
+    throwSecurityError(context, `unsafe facet id ${id}`);
+  }
+}
+
+function throwSecurityError(context: string, reason: string): never {
+  throw new Error(`Datatable security validation failed for ${context}: ${reason}`);
+}
+
 function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.Group[] {
   const operator = Array.isArray(facet.operator) ? facet.operator[0] : facet.operator;
   const property = Array.isArray(facet.operator) ? facet.operator[1] : null;
@@ -74,8 +240,10 @@ function getQueryFacet(facet: DatatableQueryFacet): PipelineStage.Group[] {
       stage.$group['value'] = { $sum: 1 };
       break;
     case 'sum':
+      stage.$group['value'] = { $sum: `$${property}` };
+      break;
     case 'avg':
-      stage.$group['value'] = { [operator]: `$${property}` };
+      stage.$group['value'] = { $avg: `$${property}` };
       break;
   }
   return [stage];
@@ -112,27 +280,31 @@ async function buildPipeline(
   options: DatatableOptions | undefined,
 ): Promise<PipelineStage.FacetPipelineStage[]> {
   const project: any = getOptionsProject(options);
-  lodash.each(query.facets, facet => (project[facet.property] = 1));
+  lodash.each(query.facets, facet => {
+    project[facet.property] = 1;
+    if (Array.isArray(facet.operator)) project[facet.operator[1]] = 1;
+  });
 
   const $or: FilterQuery<any>[] = [];
   const $and: FilterQuery<any>[] = [];
   const lookups: PipelineStage.FacetPipelineStage[] = [];
+  const populatedPaths = new Set<string>();
   const pipeline: PipelineStage.FacetPipelineStage[] = [];
 
   query.columns.forEach(column => {
     const path = column.data.trim();
     if (!path.length) return;
 
-    project[path] = column.projection ?? 1;
-
     const fields = getSchemaFieldInfo(model, path, options);
+    if (fields?.length && !isSelectable(fields)) return;
+
+    project[path] = column.projection ?? 1;
 
     const globalFilter = getSearch(column, query.search, fields?.length ? fields[fields.length - 1] : undefined);
     $or.push(...globalFilter);
     const columnFilter = getSearch(column, column.search, fields?.length ? fields[fields.length - 1] : undefined);
 
     if (fields?.length) {
-      if (!isSelectable(fields)) return;
       if (fields.length === 1) {
         $and?.push(...columnFilter);
         return;
@@ -143,6 +315,9 @@ async function buildPipeline(
         const previousField = fields[index - 1];
         const from = getFieldRefModel(model, fields[index - 1], options)!.collection.name;
         const localField = fields.slice(0, index).reduce((pv, cv, i) => (!i ? cv.path : (pv += `.${cv.path}`)), '');
+        const lookupKey = `${from}:${localField}`;
+        if (populatedPaths.has(lookupKey)) return;
+        populatedPaths.add(lookupKey);
         if (!previousField.array?.length) {
           lookups.push({ $lookup: { from, localField, foreignField: '_id', as: localField } });
           if (previousField.instance !== 'Array') {
@@ -175,7 +350,9 @@ async function buildPipeline(
   if ($and.length) pipeline.push({ $match: { $and } });
   pipeline.push(...lookups);
   if ($or.length) pipeline.push({ $match: { $or } });
-  pipeline.push({ $project: consolidateProject(project) });
+  const consolidatedProject = consolidateProject(project);
+  if (!Object.keys(consolidatedProject).length) consolidatedProject._id = 1;
+  pipeline.push({ $project: consolidatedProject });
 
   return pipeline;
 }
@@ -332,6 +509,7 @@ function buildFilter(
   switch (op) {
     case '>':
       return { [property]: { $gt: value1 } };
+    case '>=':
     case '≥':
       return { [property]: { $gte: value1 } };
     case '<':
@@ -406,7 +584,10 @@ function buildFieldInfo(path: string, field: SchemaType): FieldInfo {
     path,
     instance: field.instance,
     ref,
-    selectabled: field.options?.datatable?.selectabled,
+    selectabled:
+      field.options?.select !== false &&
+      field.options?.dataTableSelect !== false &&
+      field.options?.datatable?.selectabled !== false,
     array,
   };
 }
