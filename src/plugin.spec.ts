@@ -259,6 +259,83 @@ describe('Datatable Module', () => {
       ).to.be.rejectedWith('field private_value is not selectable');
     });
 
+    it('should reject $$ROOT in projection expressions when security is enabled', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'document', projection: '$$ROOT' }],
+        start: 0,
+        length: 10,
+      };
+
+      await expect(model.datatable(query, { security: {} })).to.be.rejectedWith(
+        'Datatable security validation failed for columns[0].projection: aggregation variable $$ROOT is not allowed',
+      );
+    });
+
+    it('should reject $$CURRENT in projection expressions when security is enabled', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'document', projection: '$$CURRENT' }],
+        start: 0,
+        length: 10,
+      };
+
+      await expect(model.datatable(query, { security: {} })).to.be.rejectedWith(
+        'Datatable security validation failed for columns[0].projection: aggregation variable $$CURRENT is not allowed',
+      );
+    });
+
+    it('should reject aggregation variables nested in projection expressions', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'document', projection: { $ifNull: ['$$ROOT', {}] } }],
+        start: 0,
+        length: 10,
+      };
+
+      await expect(
+        model.datatable(query, { security: { allowedProjectionOperators: ['$ifNull'] } }),
+      ).to.be.rejectedWith('aggregation variable $$ROOT is not allowed');
+    });
+
+    it('should reject aggregation variables in facet info expressions', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'activated' }],
+        facets: [
+          {
+            id: 'activatedInfo',
+            kind: 'indicator',
+            property: 'activated',
+            operator: 'count',
+            info: { $first: '$$ROOT' },
+          },
+        ],
+        start: 0,
+        length: 10,
+      };
+
+      await expect(
+        model.datatable(query, { security: { allowedFacetInfoOperators: ['$first'] } }),
+      ).to.be.rejectedWith('aggregation variable $$ROOT is not allowed');
+    });
+
+    it('should reject facet ids reserved by the internal aggregation pipeline', async () => {
+      for (const id of ['data', 'recordsFiltered', 'recordsTotal']) {
+        const query: DatatableQuery = {
+          draw: '2',
+          columns: [{ data: 'activated' }],
+          facets: [{ id, kind: 'indicator', property: 'activated', operator: 'count' }],
+          start: 0,
+          length: 10,
+        };
+
+        await expect(model.datatable(query, { security: { validatePaths: true } })).to.be.rejectedWith(
+          `Datatable security validation failed for facets[0].id: facet id ${id} is reserved`,
+        );
+      }
+    });
+
     it('should reject non-selectable facet fields when selectable facet validation is enabled', async () => {
       const query: DatatableQuery = {
         draw: '2',
@@ -297,6 +374,142 @@ describe('Datatable Module', () => {
           security: { allowedFacetInfoOperators: ['$first'] },
         }),
       ).to.be.rejectedWith('operator $push is not allowed');
+    });
+
+    it('should reject regular expressions longer than the configured security limit', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'first_name', searchable: true, search: { value: 'Clement', regex: true } }],
+        start: 0,
+        length: 10,
+      };
+
+      await expect(model.datatable(query, { security: { maxRegexLength: 4 } })).to.be.rejectedWith(
+        'Datatable security validation failed for columns[0].search.value: regular expression exceeds 4 characters',
+      );
+    });
+
+    it('should return zero recordsFiltered when a valid search has no match', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'first_name', searchable: true, search: { value: 'Nobody' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed for an invalid ObjectId search', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: '_id', searchable: true, search: { value: 'not-an-object-id' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed for an invalid number search', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'position', searchable: true, search: { value: 'not-a-number' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed for an invalid boolean search', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'activated', searchable: true, search: { value: 'yes' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed for an invalid date search', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'start_date', searchable: true, search: { value: 'not-a-date' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed for an incomplete range search', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'start_date', searchable: true, search: { operator: '≤≥', value: '2019-01-02' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should fail closed when $in does not receive an array', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'first_name', searchable: true, search: { operator: '$in', value: 'Clement' } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
+    });
+
+    it('should normalize ObjectId arrays used by $in searches', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [
+          {
+            data: '_id',
+            searchable: true,
+            search: { operator: '$in', value: [tests[0]._id.toString(), tests[1]._id.toString()] },
+          },
+        ],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(2);
+      expect(data.data).to.have.lengthOf(2);
+    });
+
+    it('should fail closed for an invalid regular expression', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'first_name', searchable: true, search: { value: '[', regex: true } }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(0);
+      expect(data.data).to.have.lengthOf(0);
     });
 
     it('should list all data event with unknown fields or ref schema', async () => {
@@ -585,6 +798,32 @@ describe('Datatable Module', () => {
       expect(data.data.map((entry: any) => entry.position)).to.deep.equal([3, 4, 5, 6]);
     });
 
+    it('should ignore order requests for columns marked as not orderable', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [
+          { data: 'position', orderable: false },
+          { data: 'first_name', orderable: true },
+        ],
+        order: [
+          { column: 0, dir: 'desc' },
+          { column: 1, dir: 'asc' },
+        ],
+        start: 0,
+        length: 10,
+      };
+      const data = await model.datatable(query);
+      expect(data).to.not.be.null;
+      expect(data.data.map((entry: any) => entry.first_name)).to.deep.equal([
+        'Antonia',
+        'Ben',
+        'Clement',
+        'Eman',
+        'Eman',
+        'Saanvi',
+      ]);
+    });
+
     it('should not expose fields configured with select false', async () => {
       const query: DatatableQuery = {
         draw: '2',
@@ -858,7 +1097,7 @@ describe('Datatable Module', () => {
           {
             data: 'nested_embeded_schema_array.embeded_schema_array.code',
             searchable: true,
-            // search: { value: 'FR01' },
+            search: { value: 'FR01' },
           },
         ],
       };
@@ -871,6 +1110,47 @@ describe('Datatable Module', () => {
       expect(data.data[0].nested_embeded_schema_array[0]).to.have.property('embeded_schema_array');
       expect(data.data[0].nested_embeded_schema_array[0].embeded_schema_array).to.have.lengthOf(2);
       expect(data.data[0].nested_embeded_schema_array[0].embeded_schema_array[0]).to.have.property('code', 'FR01');
+    });
+
+    it('should keep fields referenced only by facet info expressions', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [{ data: 'activated' }],
+        order: [],
+        start: 0,
+        length: 10,
+        facets: [
+          {
+            id: 'activatedInfo',
+            kind: 'indicator',
+            property: 'activated',
+            operator: 'count',
+            info: { $first: '$first_name' },
+          },
+        ],
+      };
+
+      const data = await model.datatable(query);
+      const activeFacet = data.facets!.activatedInfo.find((facet: any) => facet._id === true);
+      expect(activeFacet?.info).to.equal('Clement');
+    });
+
+    it('should preserve rows with empty arrays while populating nested array references', async () => {
+      const query: DatatableQuery = {
+        draw: '2',
+        columns: [
+          { data: 'first_name', searchable: true },
+          { data: 'array.embeded_schema.code', searchable: true },
+        ],
+        order: [{ column: 0, dir: 'asc' }],
+        start: 0,
+        length: 10,
+      };
+
+      const data = await model.datatable(query);
+      expect(data.recordsFiltered).to.equal(records.length);
+      expect(data.data).to.have.lengthOf(records.length);
+      expect(data.data.map((entry: any) => entry.first_name)).to.include('Ben');
     });
 
     it('should keep aggregation fields required by sum and avg facets', async () => {

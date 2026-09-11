@@ -81,11 +81,13 @@ async function datatable(this: Model<any>, query: DatatableQuery, options?: Data
 }
 
 const RESERVED_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
+const RESERVED_FACET_IDS = new Set(['data', 'recordsFiltered', 'recordsTotal']);
 
 function validateQuerySecurity(model: Model<any>, query: DatatableQuery, options?: DatatableOptions): void {
   const security = options?.security;
   if (!security) return;
 
+  validateSecurityOptions(security);
   validateSearchSecurity(query.search, 'search', security);
 
   query.columns.forEach((column, index) => {
@@ -134,6 +136,12 @@ function validateQuerySecurity(model: Model<any>, query: DatatableQuery, options
   });
 }
 
+function validateSecurityOptions(security: DatatableSecurityOptions): void {
+  if (security.maxRegexLength === undefined) return;
+  if (Number.isInteger(security.maxRegexLength) && security.maxRegexLength > 0) return;
+  throw new Error('Datatable security configuration failed: maxRegexLength must be a positive integer');
+}
+
 function validateSearchSecurity(
   search: DatatableQuerySearch | undefined,
   context: string,
@@ -143,6 +151,13 @@ function validateSearchSecurity(
 
   if (search.operator && security.allowedSearchOperators && !security.allowedSearchOperators.includes(search.operator)) {
     throwSecurityError(`${context}.operator`, `operator ${search.operator} is not allowed`);
+  }
+
+  if (search.regex && security.maxRegexLength !== undefined) {
+    const regexValue = Array.isArray(search.value) ? search.value[0] : search.value;
+    if (typeof regexValue === 'string' && regexValue.length > security.maxRegexLength) {
+      throwSecurityError(`${context}.value`, `regular expression exceeds ${security.maxRegexLength} characters`);
+    }
   }
 
   if (security.allowObjectSearch !== false || !isRestrictedSearchObject(search.value)) return;
@@ -172,7 +187,12 @@ function validateExpressionSecurity(
   options: DatatableOptions | undefined,
   context: string,
 ): void {
-  if (typeof value === 'string' && value.startsWith('$') && !value.startsWith('$$')) {
+  if (typeof value === 'string' && value.startsWith('$$')) {
+    const variable = value.split('.')[0];
+    throwSecurityError(context, `aggregation variable ${variable} is not allowed`);
+  }
+
+  if (typeof value === 'string' && value.startsWith('$')) {
     const path = value.substring(1);
     if (security.validatePaths) validateMongoPath(path, `${context} field reference`);
     if (security.validateSelectableExpressionFields) validateSelectableExpressionField(model, path, options, context);
@@ -224,6 +244,7 @@ function validateFacetId(id: string, context: string): void {
   if (typeof id !== 'string' || !id.length || id.includes('.') || id.includes('$') || id.includes('\0') || RESERVED_PATH_SEGMENTS.has(id)) {
     throwSecurityError(context, `unsafe facet id ${id}`);
   }
+  if (RESERVED_FACET_IDS.has(id)) throwSecurityError(context, `facet id ${id} is reserved`);
 }
 
 function throwSecurityError(context: string, reason: string): never {
@@ -263,13 +284,13 @@ function buildData(
 ): DatatableData {
   const data: DatatableData = {
     draw: query.draw,
-    recordsFiltered: res ? res.recordsFiltered : 0,
-    data: res ? res.data : [],
+    recordsFiltered: res?.recordsFiltered ?? 0,
+    data: res?.data ?? [],
   };
-  if (query.enableUnfilteredInfo === true) data.recordsTotal = res ? res.recordsTotal : 0;
+  if (query.enableUnfilteredInfo === true) data.recordsTotal = res?.recordsTotal ?? 0;
   if (query.facets?.length) {
     data.facets = {};
-    lodash.each(query.facets, facet => (data.facets![facet.id] = res[facet.id]));
+    lodash.each(query.facets, facet => (data.facets![facet.id] = res?.[facet.id] ?? []));
   }
   return data;
 }
@@ -283,6 +304,7 @@ async function buildPipeline(
   lodash.each(query.facets, facet => {
     project[facet.property] = 1;
     if (Array.isArray(facet.operator)) project[facet.operator[1]] = 1;
+    addExpressionProjectionFields(model, project, facet.info, options);
   });
 
   const $or: FilterQuery<any>[] = [];
@@ -326,7 +348,7 @@ async function buildPipeline(
         } else {
           previousField.array.forEach((_, index) => {
             const path = previousField.array!.slice(0, index + 1).join('.');
-            lookups.push({ $unwind: `$${path}` });
+            lookups.push({ $unwind: { path: `$${path}`, preserveNullAndEmptyArrays: true } });
           });
           lookups.push(
             { $lookup: { from, localField, foreignField: '_id', as: localField } },
@@ -357,6 +379,33 @@ async function buildPipeline(
   return pipeline;
 }
 
+function addExpressionProjectionFields(
+  model: Model<any>,
+  project: { [field: string]: any },
+  expression: any,
+  options: DatatableOptions | undefined,
+): void {
+  collectExpressionFieldPaths(expression).forEach(path => {
+    const fields = getSchemaFieldInfo(model, path, options);
+    if (!fields?.length || !isSelectable(fields)) return;
+    project[path] = 1;
+  });
+}
+
+function collectExpressionFieldPaths(value: any, paths = new Set<string>()): Set<string> {
+  if (typeof value === 'string' && value.startsWith('$') && !value.startsWith('$$')) {
+    if (value.length > 1) paths.add(value.substring(1));
+    return paths;
+  }
+  if (Array.isArray(value)) {
+    value.forEach(item => collectExpressionFieldPaths(item, paths));
+    return paths;
+  }
+  if (!lodash.isPlainObject(value)) return paths;
+  Object.values(value).forEach(item => collectExpressionFieldPaths(item, paths));
+  return paths;
+}
+
 function consolidateProject(project: any): any {
   const consolidated = {};
   Object.keys(project)
@@ -384,117 +433,148 @@ function getOptionsProject(options: DatatableOptions | undefined): { [field: str
 function getSearch(column: DatatableQueryColumn, search?: DatatableQuerySearch, field?: FieldInfo): FilterQuery<any>[] {
   if (column.searchable === false) return [];
   if (!search) return [];
-  const filters: FilterQuery<any>[] = [];
   const type = column.type?.toLowerCase() ?? field?.instance?.toLowerCase();
+  let filter: FilterQuery<any> | undefined;
   switch (type) {
     case 'string':
-      filters.push(...getStringSearch(column, search));
+      filter = getStringSearch(column, search);
       break;
     case 'boolean':
-      filters.push(...getBooleanSearch(column, search));
+      filter = getBooleanSearch(column, search);
       break;
     case 'number':
-      filters.push(...getNumberSearch(column, search));
+      filter = getNumberSearch(column, search);
       break;
     case 'date':
-      filters.push(...getDateSearch(column, search));
+      filter = getDateSearch(column, search);
       break;
     case 'objectid':
-      filters.push(...getObjectIdSearch(column, search));
+      filter = getObjectIdSearch(column, search);
       break;
     default:
-      const filter = buildFilter(column.data, search.operator, search.value, search.regex);
-      if (filter) filters.push(filter);
+      filter = buildFilter(column.data, search.operator, search.value, search.regex);
   }
-  return filters;
+  if (filter) return [filter];
+  if (search.value !== undefined) return [buildNoMatchFilter()];
+  return [];
 }
 
-function getObjectIdSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any>[] {
-  const filters: FilterQuery<any>[] = [];
+function getObjectIdSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any> | undefined {
+  const value = normalizeObjectIdSearchValue(search.value);
+  return buildFilter(column.data, search.operator, value);
+}
+
+function normalizeObjectIdSearchValue(value: any): any {
+  if (value === null || value instanceof Types.ObjectId) return value;
+  if (Array.isArray(value)) {
+    const values = value.map(item => normalizeSingleObjectId(item));
+    return values.every(item => item !== undefined) ? values : undefined;
+  }
+  if (lodash.isPlainObject(value)) return value;
+  return normalizeSingleObjectId(value);
+}
+
+function normalizeSingleObjectId(value: any): Types.ObjectId | undefined {
+  if (value instanceof Types.ObjectId) return value;
+  if (typeof value === 'string' && Types.ObjectId.isValid(value)) return Types.ObjectId.createFromHexString(value);
+  if (typeof value === 'number' && Types.ObjectId.isValid(value)) return Types.ObjectId.createFromTime(value);
+  return;
+}
+
+function getDateSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any> | undefined {
+  const value = normalizeDateSearchValue(search.value);
+  return buildFilter(column.data, search.operator, value);
+}
+
+function normalizeDateSearchValue(value: any): any {
+  if (value === null) return null;
+  if (value instanceof Date) return isNaN(value.valueOf()) ? undefined : value;
+  if (Array.isArray(value)) return normalizeDateArray(value);
+  if (typeof value === 'string') return normalizeDateArray(value.split(';'));
+  if (typeof value === 'number') return normalizeSingleDate(value);
+  if (!lodash.isPlainObject(value)) return;
+  if (!isDateRangeSearchValue(value)) return value;
+  const values = ['from', 'to']
+    .filter(key => value[key] !== null && value[key] !== undefined)
+    .map(key => normalizeSingleDate(value[key]));
+  return values.length && values.every(item => item !== undefined) ? values : undefined;
+}
+
+function normalizeDateArray(values: any[]): Date[] | undefined {
+  if (!values.length) return;
+  const dates = values.map(value => normalizeSingleDate(value));
+  return dates.every(value => value !== undefined) ? (dates as Date[]) : undefined;
+}
+
+function normalizeSingleDate(value: any): Date | undefined {
+  if (value instanceof Date) return isNaN(value.valueOf()) ? undefined : value;
+  if (typeof value !== 'string' && typeof value !== 'number') return;
+  if (typeof value === 'string' && !value.trim().length) return;
+  const date = new Date(value);
+  return isNaN(date.valueOf()) ? undefined : date;
+}
+
+function getNumberSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any> | undefined {
+  const value = normalizeNumberSearchValue(search.value);
+  return buildFilter(column.data, search.operator, value);
+}
+
+function normalizeNumberSearchValue(value: any): any {
+  if (value === null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (Array.isArray(value)) return normalizeNumberArray(value);
+  if (typeof value === 'string') return normalizeNumberArray(value.split(';'));
+  if (lodash.isPlainObject(value)) return value;
+  return;
+}
+
+function normalizeNumberArray(values: any[]): number[] | undefined {
+  if (!values.length) return;
+  const numbers = values.map(value => normalizeSingleNumber(value));
+  return numbers.every(value => value !== undefined) ? (numbers as number[]) : undefined;
+}
+
+function normalizeSingleNumber(value: any): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== 'string' || !value.trim().length) return;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function getBooleanSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any> | undefined {
+  const value = normalizeBooleanSearchValue(search.value);
+  return buildFilter(column.data, search.operator, value);
+}
+
+function normalizeBooleanSearchValue(value: any): any {
+  if (value === null || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) {
+    const values = value.map(item => normalizeSingleBoolean(item));
+    return values.every(item => item !== undefined) ? values : undefined;
+  }
+  if (typeof value === 'string') return normalizeSingleBoolean(value);
+  if (lodash.isPlainObject(value)) return value;
+  return;
+}
+
+function normalizeSingleBoolean(value: any): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return;
+  const stringValue = value.trim().toLowerCase();
+  if (stringValue === 'true') return true;
+  if (stringValue === 'false') return false;
+  return;
+}
+
+function getStringSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any> | undefined {
   let value: any;
-  if (typeof search.value === 'string' && Types.ObjectId.isValid(search.value)) {
-    value = Types.ObjectId.createFromHexString(search.value);
-  } else if (typeof search.value === 'number' && Types.ObjectId.isValid(search.value)) {
-    value = Types.ObjectId.createFromTime(search.value);
-  } else if (typeof search.value === 'object')
-    value = search.value; // TODO allow disable for security reason
-  else if (search.value === null) value = null;
-  const filter = buildFilter(column.data, search.operator, value);
-  if (filter) filters.push(filter);
-  return filters;
+  if (search.value === null || typeof search.value === 'string' || Array.isArray(search.value)) value = search.value;
+  else if (lodash.isPlainObject(search.value)) value = search.value;
+  return buildFilter(column.data, search.operator, value, search.regex);
 }
 
-function getDateSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any>[] {
-  const filters: FilterQuery<any>[] = [];
-  let value: any;
-  if (typeof search.value === 'string') {
-    value = search.value
-      .split(';')
-      .map(value => new Date(value))
-      .filter(value => !isNaN(value.valueOf()));
-  } else if (typeof search.value === 'number') value = new Date(search.value);
-  else if (search.value instanceof Date) value = search.value;
-  else if (search.value?.from || search.value?.to) {
-    const from = search.value?.from ? new Date(search.value.from) : undefined;
-    if (from && !isNaN(from.valueOf())) value = [...(value || []), from];
-    const to = search.value?.to ? new Date(search.value.to) : undefined;
-    if (to && !isNaN(to.valueOf())) value = [...(value || []), to];
-  } else if (typeof search.value === 'object')
-    value = search.value; // TODO allow disable for security reason
-  else if (search.value === null) value = null;
-  const filter = buildFilter(column.data, search.operator, value);
-  if (filter) filters.push(filter);
-  return filters;
-}
-
-function getNumberSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any>[] {
-  const filters: FilterQuery<any>[] = [];
-  let value: any;
-  if (typeof search.value === 'string') {
-    value = search.value
-      .split(';')
-      .map(value => parseFloat(value))
-      .filter(value => !isNaN(value));
-  } else if (typeof search.value === 'number') value = search.value;
-  else if (typeof search.value === 'object')
-    value = search.value; // TODO allow disable for security reason
-  else if (search.value === null) value = null;
-  const filter = buildFilter(column.data, search.operator, value);
-  if (filter) filters.push(filter);
-  return filters;
-}
-
-function getBooleanSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any>[] {
-  const filters: FilterQuery<any>[] = [];
-  let value: any;
-  if (typeof search.value === 'string') {
-    const stringValue = search.value.trim().toLowerCase();
-    value =
-      stringValue === 'true' ? true
-      : stringValue === 'false' ? false
-      : undefined;
-  } else if (typeof search.value === 'boolean') value = search.value;
-  else if (typeof search.value === 'object')
-    value = search.value; // TODO allow disable for security reason
-  else if (search.value === null) value = null;
-
-  const filter = buildFilter(column.data, search.operator, value);
-  if (filter) filters.push(filter);
-
-  return filters;
-}
-
-function getStringSearch(column: DatatableQueryColumn, search: DatatableQuerySearch): FilterQuery<any>[] {
-  const filters: FilterQuery<any>[] = [];
-  let value: any;
-  if (typeof search.value === 'string') value = search.value;
-  else if (typeof search.value === 'object')
-    value = search.value; // TODO allow disable for security reason
-  else if (search.value === null) value = null;
-  const filter = buildFilter(column.data, search.operator, value, search.regex);
-  if (filter) filters.push(filter);
-  return filters;
-}
+const RANGE_SEARCH_OPERATORS = new Set<DatatableQuerySearchOperator>(['<>', '≤≥', '><', '≥≤']);
+const ARRAY_SEARCH_OPERATORS = new Set<DatatableQuerySearchOperator>(['$in', '$nin']);
 
 function buildFilter(
   property: string,
@@ -504,6 +584,9 @@ function buildFilter(
 ): FilterQuery<any> | undefined {
   if (value === undefined) return;
   if (value === null) return { [property]: null };
+  if (op && ARRAY_SEARCH_OPERATORS.has(op) && (!Array.isArray(value) || !value.length)) return buildNoMatchFilter();
+  if (op && RANGE_SEARCH_OPERATORS.has(op) && (!Array.isArray(value) || value.length < 2)) return buildNoMatchFilter();
+
   const value1 = Array.isArray(value) && value.length >= 1 ? value[0] : value;
   const value2 = Array.isArray(value) && value.length >= 2 ? value[1] : undefined;
   switch (op) {
@@ -529,9 +612,18 @@ function buildFilter(
     case '$nin':
       return { [property]: { $nin: value } };
     default:
-      if (regex) return { [property]: new RegExp(value1, 'gi') };
-      return { [property]: value1 };
+      if (!regex) return { [property]: value1 };
+      if (typeof value1 !== 'string') return buildNoMatchFilter();
+      try {
+        return { [property]: new RegExp(value1, 'gi') };
+      } catch {
+        return buildNoMatchFilter();
+      }
   }
+}
+
+function buildNoMatchFilter(): FilterQuery<any> {
+  return { _id: { $exists: false } };
 }
 
 function isSelectable(fields: FieldInfo[]): boolean {
@@ -625,7 +717,7 @@ function buildSort(query: DatatableQuery): DatatableSort | undefined {
   const sort: DatatableSort = {};
   query.order.forEach(order => {
     const column = query.columns[order.column];
-    if (!column) return;
+    if (!column || column.orderable === false) return;
     sort[column.data] = order.dir == 'asc' ? 1 : -1;
   });
   if (!!Object.keys(sort).length) return sort;

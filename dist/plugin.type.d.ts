@@ -13,6 +13,7 @@ export type DatatableSecurityOptions = {
     allowedFacetInfoOperators?: string[];
     validateSelectableExpressionFields?: boolean;
     validateSelectableFacetFields?: boolean;
+    maxRegexLength?: number;
 };
 export type DatatableSchemaOptions = {
     logger?: DatatableLogger;

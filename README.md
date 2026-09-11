@@ -31,7 +31,7 @@ The plugin adds the static method `datatable(query, options?)` to Mongoose model
 The main query fields are:
 
 - `draw`: request identifier returned unchanged in the response;
-- `columns`: requested fields, projection expressions and search metadata;
+- `columns`: requested fields, projection expressions and search metadata; `orderable: false` prevents ordering by that column;
 - `order`: column indexes and `asc` / `desc` direction;
 - `start`: page index;
 - `length`: page size;
@@ -89,20 +89,28 @@ const result = await Model.datatable(query, {
     allowedFacetInfoOperators: ['$first'],
     validateSelectableExpressionFields: true,
     validateSelectableFacetFields: true,
+    maxRegexLength: 256,
   },
 });
 ```
 
 Available controls:
 
-- `validatePaths`: reject unsafe MongoDB paths and reserved object keys such as `$where` or `__proto__`;
+- `validatePaths`: reject unsafe MongoDB paths, reserved object keys such as `$where` or `__proto__`, and facet IDs reserved by the internal pipeline (`data`, `recordsFiltered`, `recordsTotal`);
 - `allowObjectSearch`: when `false`, reject raw object query values while keeping date-range `{ from, to }` values supported;
 - `allowedSearchOperators`: allowlist search operators accepted from the request;
 - `allowedFacetOperators`: allowlist `count`, `sum` and `avg`;
 - `allowedProjectionOperators`: recursively allowlist MongoDB operators used by client-provided projection expressions;
 - `allowedFacetInfoOperators`: recursively allowlist MongoDB operators used by facet `info`;
 - `validateSelectableExpressionFields`: prevent expressions from reading fields disabled with `select: false`, `dataTableSelect: false` or `datatable.selectabled: false`;
-- `validateSelectableFacetFields`: prevent facet keys and `sum` / `avg` source fields from reading fields disabled by the same schema selection rules.
+- `validateSelectableFacetFields`: prevent facet keys and `sum` / `avg` source fields from reading fields disabled by the same schema selection rules;
+- `maxRegexLength`: reject client-provided regular expressions longer than the configured positive character limit.
+
+When security hardening is enabled, client-provided projection and facet `info` expressions reject MongoDB aggregation variables such as `$$ROOT` and `$$CURRENT`. This prevents expression variables from bypassing selectable-field validation.
+
+Malformed typed search values now fail closed instead of silently removing the filter. Invalid ObjectIds, numbers, booleans, dates, ranges, `$in` / `$nin` shapes, and invalid regular expressions therefore return no matching rows rather than broadening the query. Arrays supplied for ObjectId, number, date, and boolean searches are normalized element by element.
+
+Fields referenced only by facet `info` expressions are preserved in the aggregation projection when they resolve to selectable schema fields. Nested array-reference lookups preserve documents whose arrays are empty or missing.
 
 If a security option is omitted, that specific restriction is not enabled. Schema-level and per-call security options are merged, with per-call values taking precedence.
 
